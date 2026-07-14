@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, CssBaseline } from '@mui/material';
-import { getAppTheme } from './theme';
+import { ThemeModeProvider } from './contexts/ThemeModeContext';
 import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
@@ -10,12 +9,9 @@ import Resume from './pages/ResumeTailoring';
 import InterviewChatbot from './pages/InterviewChatbot';
 import { RecentActivityProvider } from './contexts/RecentActivityContext';
 
-const theme = getAppTheme('light');
-
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ThemeModeProvider>
       <RecentActivityProvider>
         <Router>
           <Routes>
@@ -30,7 +26,7 @@ function App() {
           </Routes>
         </Router>
       </RecentActivityProvider>
-    </ThemeProvider>
+    </ThemeModeProvider>
   );
 }
 
