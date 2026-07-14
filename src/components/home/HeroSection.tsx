@@ -77,7 +77,7 @@ const HeroSection: React.FC = () => {
             <Box
               component="img"
               src={heroImage}
-              alt="AI Resume Assistant"
+              alt="CareerCoach AI"
               sx={{
                 width: '100%',
                 maxWidth: 500,

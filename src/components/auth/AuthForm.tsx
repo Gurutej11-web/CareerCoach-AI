@@ -160,7 +160,7 @@ const AuthForm: React.FC = () => {
           }}
         >
           <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-            AI Resume Assistant
+            CareerCoach AI
           </Typography>
           <Typography variant="h6" sx={{ mb: 3 }}>
             Your AI-powered job application companion

@@ -20,7 +20,7 @@ const Footer: React.FC = () => {
         <Grid container spacing={4} justifyContent="center">
           <Grid item xs={4} sx={{ ml: 12 }}>
             <Typography variant="h6" color="text.primary" gutterBottom>
-              AI Resume Assistant
+              CareerCoach AI
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Your AI-powered job application companion
@@ -33,7 +33,7 @@ const Footer: React.FC = () => {
           align="center"
           sx={{ mt: 4 }}
         >
-          © {new Date().getFullYear()} AI Resume Assistant. All rights reserved.
+          © {new Date().getFullYear()} CareerCoach AI. All rights reserved.
         </Typography>
       </Container>
     </Box>

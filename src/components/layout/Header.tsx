@@ -18,7 +18,7 @@ const Header: React.FC = () => {
             fontSize: '30px',
           }}
         >
-          AI Resume Assistant
+          CareerCoach AI
         </Typography>
         <Box sx={{ display: 'flex', gap: 2}}>
           <Button color="inherit" component={RouterLink} to="/login" sx={{ fontSize: '20px', fontFamily: 'Times New Roman, serif' }}>

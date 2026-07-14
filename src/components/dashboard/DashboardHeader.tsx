@@ -93,7 +93,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onToggleSidebar }) =>
             fontSize: '30px'
           }}
         >
-          AI Resume Assistant
+          CareerCoach AI
         </Typography>
 
         <Box sx={{ flexGrow: 1 }} />
