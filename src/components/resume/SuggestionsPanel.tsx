@@ -15,11 +15,12 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  CircularProgress,
   Grid,
   LinearProgress,
   Tooltip,
 } from '@mui/material';
+import LoadingState from '../common/LoadingState';
+import { useNotification } from '../../contexts/NotificationContext';
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
@@ -46,6 +47,7 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<ResumeAnalysisResult | null>(null);
+  const { notify } = useNotification();
 
   // Add a helper function to check if sentiment analysis is valid
   const isValidSentimentAnalysis = (sentimentData: any): boolean => {
@@ -72,6 +74,7 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
     } catch (err) {
       console.error('Error analyzing resume:', err);
       setError('Failed to analyze resume. Please try again.');
+      notify('Failed to analyze resume. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -111,11 +114,11 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
 
   if (loading) {
     return (
-      <Paper elevation={2} sx={{ p: 3, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress sx={{ mb: 2 }} />
-          <Typography>Analyzing your resume...</Typography>
-        </Box>
+      <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+        <Typography variant="subtitle1" sx={{ mb: 2 }} color="text.secondary">
+          Analyzing your resume...
+        </Typography>
+        <LoadingState variant="skeleton" skeletonRows={5} />
       </Paper>
     );
   }
