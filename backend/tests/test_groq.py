@@ -29,7 +29,7 @@ def test_groq_connection():
     try:
         # Make a simple test request
         response = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": "You are a helpful interview preparation assistant."},
                 {"role": "user", "content": "What's a good answer to 'tell me about yourself'?"}

@@ -15,11 +15,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 
-# Load environment variables
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables explicitly from backend/.env — without an explicit
+# path, load_dotenv() searches upward from the current working directory and
+# can silently pick up an unrelated .env (e.g. the frontend's root .env).
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production

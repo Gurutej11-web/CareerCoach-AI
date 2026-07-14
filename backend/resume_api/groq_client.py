@@ -20,7 +20,7 @@ class InterviewChatbot:
     """Groq-powered interview preparation chatbot using Llama 3"""
     
     def __init__(self):
-        self.model = "llama3-70b-8192"
+        self.model = "llama-3.3-70b-versatile"
         self.predefined_faqs = {
             "tell me about yourself": "When answering 'Tell me about yourself', focus on your professional background, relevant skills, and experiences. Start with a brief introduction, highlight key achievements, and connect your background to the job you're applying for. Keep it concise (1-2 minutes) and avoid personal details not relevant to the position.",
             "what are your strengths": "When discussing strengths, choose 2-3 qualities relevant to the position. Provide specific examples that demonstrate these strengths in action. Focus on skills that will add value to the company and try to align them with the job requirements.",
