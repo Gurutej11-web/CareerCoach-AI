@@ -5,6 +5,7 @@ import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
 import QuickAccessCard from './QuickAccessCard';
 import RecentActivity from './RecentActivity';
+import StatsOverview from './StatsOverview';
 
 const quickAccessItems = [
   {
@@ -43,6 +44,8 @@ const DashboardContent: React.FC = () => {
         <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" sx={{fontSize:'35px'}}>
           Dashboard
         </Typography>
+
+        <StatsOverview />
 
         <Grid container spacing={4} sx={{ mt: 2 }}>
           {quickAccessItems.map((item, index) => (
