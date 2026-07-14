@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Container, Typography, Button, Grid, Chip, Stack } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import heroImage from '../../assets/images/hero-image.png';
+import HeroVisual from './HeroVisual';
 
 const trustBadges = ['Powered by LLaMA 3', 'Azure Cognitive Services', 'BERT-based analysis'];
 
@@ -139,19 +139,7 @@ const HeroSection: React.FC = () => {
             </Stack>
           </Grid>
           <Grid item xs={12} md={6}>
-            <Box
-              component="img"
-              src={heroImage}
-              alt="CareerCoach AI"
-              sx={{
-                width: '100%',
-                maxWidth: 480,
-                display: 'block',
-                margin: 'auto',
-                borderRadius: 3,
-                boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-              }}
-            />
+            <HeroVisual />
           </Grid>
         </Grid>
       </Container>
