@@ -7,6 +7,7 @@ import QuickAccessCard from './QuickAccessCard';
 import RecentActivity from './RecentActivity';
 import StatsOverview from './StatsOverview';
 import ScoreProgressChart from './ScoreProgressChart';
+import AchievementsPanel from './AchievementsPanel';
 
 const quickAccessItems = [
   {
@@ -65,6 +66,8 @@ const DashboardContent: React.FC = () => {
         </Grid>
 
         <ScoreProgressChart />
+
+        <AchievementsPanel />
 
         <RecentActivity />
       </Container>
