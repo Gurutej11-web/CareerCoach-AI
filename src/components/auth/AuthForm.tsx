@@ -11,13 +11,14 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  Stack,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { Visibility, VisibilityOff, CheckCircle as CheckCircleIcon } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import loginIllustration from '../../assets/images/login-illustration.png';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import Logo from '../common/Logo';
 
 // Define API base URL
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
@@ -191,40 +192,42 @@ const AuthForm: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        {/* Left side - image and content */}
+        {/* Left side - brand and feature highlights */}
         <Box
           sx={{
             flex: 1,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
             justifyContent: 'center',
-            alignItems: 'center',
-            p: 4,
-            background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+            p: 5,
+            background: 'linear-gradient(135deg, #4F46E5 0%, #6D28D9 45%, #06B6D4 100%)',
             color: 'white',
-            textAlign: 'center',
           }}
         >
-          <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-            CareerCoach AI
-          </Typography>
-          <Typography variant="h6" sx={{ mb: 3 }}>
+          <Logo iconSize={36} fontSize={26} color="white" sx={{ mb: 4 }} />
+
+          <Typography variant="h4" fontWeight={700} gutterBottom sx={{ lineHeight: 1.25 }}>
             Your AI-powered job application companion
           </Typography>
-          <Box
-            component="img"
-            src={loginIllustration}
-            alt="Login Illustration"
-            sx={{
-              width: '80%',
-              maxWidth: 300,
-              mb: 3,
-            }}
-          />
-          <Typography>
-            {isLogin
-              ? "Don't have an account yet? Join thousands of job seekers who have improved their applications."
-              : 'Already have an account? Log in to continue your job search journey.'}
+          <Typography sx={{ mb: 4, opacity: 0.9 }}>
+            Everything you need to prepare for your next role, in one place.
+          </Typography>
+
+          <Stack spacing={2}>
+            {[
+              'AI resume analysis & keyword matching',
+              'Realistic mock interviews with instant feedback',
+              '24/7 AI interview-prep chatbot',
+            ].map((feature) => (
+              <Box key={feature} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <CheckCircleIcon sx={{ fontSize: 20, opacity: 0.9 }} />
+                <Typography variant="body2">{feature}</Typography>
+              </Box>
+            ))}
+          </Stack>
+
+          <Typography variant="body2" sx={{ mt: 5, opacity: 0.8 }}>
+            Free to get started — no credit card required.
           </Typography>
         </Box>
 
