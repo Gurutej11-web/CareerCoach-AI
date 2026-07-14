@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Container, Typography, Link, Grid, IconButton, Stack, Divider } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import Logo from '../common/Logo';
 
 const productLinks = [
   { label: 'Resume Tailoring', to: '/login' },
@@ -25,14 +26,7 @@ const Footer: React.FC = () => {
       <Container maxWidth="lg">
         <Grid container spacing={4}>
           <Grid item xs={12} sm={5}>
-            <Typography
-              variant="h6"
-              color="text.primary"
-              gutterBottom
-              sx={{ fontFamily: '"Poppins", sans-serif', fontWeight: 700 }}
-            >
-              CareerCoach AI
-            </Typography>
+            <Logo iconSize={28} fontSize={20} color="text.primary" sx={{ mb: 1.5 }} />
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 320 }}>
               Your AI-powered job application companion — resume feedback, mock interviews,
               and coaching in one place.

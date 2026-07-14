@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
-  Typography,
   Button,
   Box,
   IconButton,
@@ -20,6 +19,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useThemeMode } from '../../contexts/ThemeModeContext';
+import Logo from '../common/Logo';
 
 const navLinks = [
   { label: 'Resume Tailoring', to: '/login' },
@@ -56,20 +56,13 @@ const Header: React.FC = () => {
         }}
       >
         <Toolbar>
-          <Typography
-            variant="h6"
+          <Box
             component={RouterLink}
             to="/"
-            sx={{
-              flexGrow: 1,
-              textDecoration: 'none',
-              color: 'inherit',
-              fontFamily: '"Poppins", sans-serif',
-              fontSize: '24px',
-            }}
+            sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
           >
-            CareerCoach AI
-          </Typography>
+            <Logo iconSize={30} fontSize={22} />
+          </Box>
 
           {isMobile ? (
             <>
@@ -113,9 +106,9 @@ const Header: React.FC = () => {
 
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Box sx={{ width: 260 }} role="presentation" onClick={() => setDrawerOpen(false)}>
-          <Typography variant="h6" sx={{ p: 2, fontFamily: '"Poppins", sans-serif' }}>
-            CareerCoach AI
-          </Typography>
+          <Box sx={{ p: 2 }}>
+            <Logo iconSize={26} fontSize={18} color="text.primary" />
+          </Box>
           <Divider />
           <List>
             {navLinks.map((link) => (
