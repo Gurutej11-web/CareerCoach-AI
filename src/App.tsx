@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import { RecentActivityProvider } from './contexts/RecentActivityContext';
 import PageTransition from './components/common/PageTransition';
 import LoadingState from './components/common/LoadingState';
+import BackToTop from './components/common/BackToTop';
 
 // Code-split every route except the landing page, which should paint immediately.
 const Auth = lazy(() => import('./pages/Auth'));
@@ -55,6 +56,7 @@ function App() {
             Skip to main content
           </a>
           <AnimatedRoutes />
+          <BackToTop />
         </Router>
       </RecentActivityProvider>
       </NotificationProvider>
