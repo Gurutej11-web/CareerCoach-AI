@@ -23,16 +23,24 @@ const activityIcons: Record<Activity['type'], React.ReactNode> = {
   application: <BusinessCenterIcon color="primary" />,
 };
 
-const RecentActivity: React.FC = () => {
+interface RecentActivityProps {
+  filter?: string;
+}
+
+const RecentActivity: React.FC<RecentActivityProps> = ({ filter = '' }) => {
   // Get activities from the context
-  const { activities } = useRecentActivity();
+  const { activities: allActivities } = useRecentActivity();
+  const query = filter.trim().toLowerCase();
+  const activities = query
+    ? allActivities.filter((a) => a.description.toLowerCase().includes(query))
+    : allActivities;
 
   return (
     <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
       <Typography variant="h5" component="h2" gutterBottom fontWeight="bold" sx={{fontSize: '35px'}}>
         Recent Activity
       </Typography>
-      
+
       {activities.length === 0 ? (
         <Box sx={{ 
           py: 4, 
@@ -43,7 +51,7 @@ const RecentActivity: React.FC = () => {
         }}>
           <HistoryIcon sx={{ fontSize: 60, mb: 2, opacity: 0.6 }} />
           <Typography variant="body1" sx={{ textAlign: 'center', fontSize: '18px' }}>
-            No recent activity yet
+            {query ? 'No activity matches your search' : 'No recent activity yet'}
           </Typography>
           <Typography variant="body2" sx={{ textAlign: 'center', mt: 1 }}>
             Your activities will appear here after you use the application features

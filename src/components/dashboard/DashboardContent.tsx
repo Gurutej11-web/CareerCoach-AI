@@ -1,5 +1,6 @@
-import React from 'react';
-import { Box, Container, Grid, Typography } from '@mui/material';
+import React, { useMemo, useState } from 'react';
+import { Box, Container, Grid, Typography, TextField, InputAdornment } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
@@ -40,39 +41,69 @@ const quickAccessItems = [
 ];
 
 const DashboardContent: React.FC = () => {
+  const [search, setSearch] = useState('');
+
+  const filteredQuickAccess = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return quickAccessItems;
+    return quickAccessItems.filter(
+      (item) => item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
+    );
+  }, [search]);
+
   return (
     <Box component="main" sx={{ flexGrow: 1, py: 4, px: { xs: 2, md: 4 } }}>
       <Container maxWidth="lg">
-        <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" sx={{fontSize:'35px'}}>
-          Dashboard
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" sx={{ fontSize: '35px', mb: 0 }}>
+            Dashboard
+          </Typography>
+          <TextField
+            size="small"
+            placeholder="Search dashboard..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ minWidth: 260 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
 
-        <StatsOverview />
+        <Box sx={{ mt: 2 }}>
+          <StatsOverview />
+        </Box>
 
-        <Grid container spacing={4} sx={{ mt: 2 }}>
-          {quickAccessItems.map((item, index) => (
-            <Grid item xs={12} md={4} key={index}>
-              <QuickAccessCard
-                title={item.title}
-                description={item.description}
-                icon={item.icon}
-                buttonText={item.buttonText}
-                linkTo={item.linkTo}
-                activityType={item.activityType}
-                activityDescription={item.activityDescription}
-              />
-            </Grid>
-          ))}
-        </Grid>
+        {filteredQuickAccess.length > 0 && (
+          <Grid container spacing={4} sx={{ mt: 2 }}>
+            {filteredQuickAccess.map((item, index) => (
+              <Grid item xs={12} md={4} key={index}>
+                <QuickAccessCard
+                  title={item.title}
+                  description={item.description}
+                  icon={item.icon}
+                  buttonText={item.buttonText}
+                  linkTo={item.linkTo}
+                  activityType={item.activityType}
+                  activityDescription={item.activityDescription}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        )}
 
         <ScoreProgressChart />
 
         <AchievementsPanel />
 
-        <RecentActivity />
+        <RecentActivity filter={search} />
       </Container>
     </Box>
   );
 };
 
-export default DashboardContent; 
+export default DashboardContent;
