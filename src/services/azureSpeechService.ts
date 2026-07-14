@@ -1,27 +1,8 @@
 import axios from 'axios';
 
-// Define interfaces for type safety
-interface SpeechRecognitionCallbacks {
-  onRecognizing: (text: string) => void;
-  onRecognized: (text: string) => void;
-  onError: (error: string) => void;
-}
-
 interface SpeechRecognitionControls {
   startRecognition: () => void;
   stopRecognition: () => void;
-}
-
-// Define interfaces for Speech SDK types to avoid compilation errors
-interface SpeechRecognitionEventArgs {
-  result: {
-    text: string;
-  };
-}
-
-interface SpeechRecognitionCanceledEventArgs {
-  errorCode: number;
-  errorDetails: string;
 }
 
 // Azure Speech Services configuration
@@ -161,14 +142,11 @@ function initBrowserSpeechRecognition(
   recognition.interimResults = true;
   recognition.lang = 'en-US';
   
-  let finalTranscript = '';
-  
   recognition.onresult = (event: any) => {
     let interimTranscript = '';
-    
+
     for (let i = event.resultIndex; i < event.results.length; ++i) {
       if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
         onRecognized(event.results[i][0].transcript);
       } else {
         interimTranscript += event.results[i][0].transcript;
@@ -188,7 +166,6 @@ function initBrowserSpeechRecognition(
   return {
     startRecognition: () => {
       try {
-        finalTranscript = '';
         recognition.start();
       } catch (error) {
         console.error('Error starting browser speech recognition:', error);

@@ -15,13 +15,11 @@ import {
   Paper,
   Divider
 } from '@mui/material';
-import { 
-  Mic as MicIcon, 
-  Stop as StopIcon, 
-  PlayArrow as PlayIcon, 
-  Pause as PauseIcon,
+import {
+  Mic as MicIcon,
+  Stop as StopIcon,
   Lightbulb as LightbulbIcon,
-  CheckCircle as CheckCircleIcon 
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 
 interface InterviewPanelProps {
@@ -72,9 +70,11 @@ const InterviewPanel: React.FC<InterviewPanelProps> = ({ onTranscriptionUpdate }
     setCurrentQuestion(questions[randomIndex]);
   };
 
-  // Initialize with a question
+  // Initialize with a question. Intentionally only re-runs when jobRole
+  // changes, not on every render (generateQuestion is redefined each render).
   useEffect(() => {
     generateQuestion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobRole]);
 
   // Timer for recording duration

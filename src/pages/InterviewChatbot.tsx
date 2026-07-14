@@ -9,18 +9,13 @@ import {
   List,
   ListItem,
   Avatar,
-  Chip,
-  Divider,
   Grid,
-  Tooltip,
   CircularProgress,
 } from '@mui/material';
 import {
   Send as SendIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
-  SupportAgent as SupportAgentIcon,
-  Info as InfoIcon,
 } from '@mui/icons-material';
 import { sendChatMessage, getChatbotFAQTopics } from '../services/resumeService';
 import { useRecentActivity } from '../contexts/RecentActivityContext';

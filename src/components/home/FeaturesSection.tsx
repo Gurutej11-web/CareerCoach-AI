@@ -10,7 +10,6 @@ import {
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
-import TimelineIcon from '@mui/icons-material/Timeline';
 
 const features = [
   {

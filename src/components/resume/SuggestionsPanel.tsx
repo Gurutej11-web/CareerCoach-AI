@@ -16,7 +16,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
-  LinearProgress,
   Tooltip,
 } from '@mui/material';
 import LoadingState from '../common/LoadingState';
@@ -25,7 +24,6 @@ import { useRecentActivity } from '../../contexts/RecentActivityContext';
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
-  FormatAlignLeft as FormatAlignLeftIcon,
   ExpandMore as ExpandMoreIcon,
   Star as StarIcon,
   Download as DownloadIcon,

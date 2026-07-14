@@ -3,9 +3,8 @@ import {
   Card, 
   CardContent, 
   Typography, 
-  Button, 
+  Button,
   Box,
-  SvgIconProps
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';

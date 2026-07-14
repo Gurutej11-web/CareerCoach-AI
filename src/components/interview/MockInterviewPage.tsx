@@ -3,10 +3,9 @@ import {
   Box, 
   Button, 
   Typography, 
-  Paper, 
-  Container, 
+  Paper,
+  Container,
   CircularProgress,
-  Stack,
   Chip,
   Card,
   CardContent,
@@ -26,9 +25,8 @@ import {
   Tooltip
 } from '@mui/material';
 import { 
-  Mic as MicIcon, 
+  Mic as MicIcon,
   Stop as StopIcon,
-  Upload as UploadIcon,
   PlayArrow as PlayIcon,
   Pause as PauseIcon,
   InsertChart as InsertChartIcon,
@@ -39,33 +37,10 @@ import {
   Edit as EditIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-import { getUserJobDescriptions } from '../../services/resumeService';
-import { analyzeInterview, InterviewAnalysisResult } from '../../services/interviewService';
+import { InterviewAnalysisResult } from '../../services/interviewService';
 import { initSpeechRecognition } from '../../services/azureSpeechService';
 import { analyzeTranscript } from '../../services/clientAnalysisService';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
-
-// Mock feedback data
-const mockFeedback = {
-  clarity: 78,
-  confidence: 85,
-  relevance: 72,
-  pace: 65,
-  fillerWords: 12,
-  keywordMatches: [
-    { keyword: 'leadership', count: 3 },
-    { keyword: 'team management', count: 2 },
-    { keyword: 'project delivery', count: 1 },
-    { keyword: 'agile', count: 1 },
-  ],
-  suggestions: [
-    'Try to reduce filler words like "um" and "like"',
-    'Speak a bit more slowly to improve clarity',
-    'Include more specific examples to support your claims',
-    'Maintain consistent eye contact (based on video analysis)',
-  ],
-  overallScore: 75,
-};
 
 // Interview feedback component
 const InterviewFeedback: React.FC<{ 
@@ -115,7 +90,8 @@ const InterviewFeedback: React.FC<{
         setIsPlaying(false);
       };
     }
-  }, [audioRef.current]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Function to render a metric with a linear progress
   const renderMetric = (label: string, value: number) => {
@@ -393,52 +369,7 @@ const InterviewFeedback: React.FC<{
   return null;
 };
 
-// A mock version of analyzeInterview that matches the interface
-const mockAnalyzeInterview = async (
-  audioFile: File,
-  transcript: string,
-  question: string
-): Promise<InterviewAnalysisResult> => {
-  // We're just returning a mock result, ignoring the params
-  return {
-    transcript: transcript,
-    audio_analysis: {
-      pace_score: 70,
-      pace_feedback: "Your speaking pace was good, easy to follow.",
-      volume_score: 65,
-      volume_feedback: "Your volume was consistent throughout.",
-      filler_words_count: 5,
-      wpm: 150
-    },
-    content_analysis: {
-      overall_score: 80,
-      relevance_score: 85,
-      relevance_feedback: "Your answer was relevant to the question asked.",
-      clarity_score: 75,
-      clarity_feedback: "Your explanations were clear and structured.",
-      strengths: ["Relevant experience", "Clear examples", "Good knowledge"],
-      improvement_areas: ["Speaking confidence", "Conciseness", "Specific achievements"],
-      keywords: ["experience", "problem-solving", "teamwork"],
-      missing_keywords: []
-    },
-    feedback: {
-      general_feedback: "A solid interview response that effectively addressed the question. With a bit more confidence and conciseness, it would be even stronger.",
-      suggestions: [
-        "Speak more confidently",
-        "Make responses more concise",
-        "Add more specifics about achievements"
-      ],
-      sample_answers: [
-        "A strong sample answer would include specific metrics and outcomes from your experience."
-      ]
-    }
-  };
-};
-
 const MockInterviewPage: React.FC = () => {
-  // State for steps
-  const [activeStep, setActiveStep] = useState(0);
-  
   // State for recording
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -469,8 +400,6 @@ const MockInterviewPage: React.FC = () => {
   const [error, setError] = useState<string>('');
   
   // Refs for recording
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const speechRecognitionRef = useRef<{
@@ -486,21 +415,28 @@ const MockInterviewPage: React.FC = () => {
     if (currentQuestionIndex >= questions.length) {
       setCurrentQuestionIndex(0);
     }
+    // Intentionally runs once on mount only, to validate the initial index.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  // Clean up on unmount
+  // Clean up on unmount. Reading ref.current at cleanup time (rather than
+  // capturing it earlier) is intentional here — we want whatever timer/
+  // recognizer is live at unmount, not a stale snapshot from effect setup
+  // time (these refs are populated later, when recording actually starts).
   useEffect(() => {
     return () => {
       if (timerRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         clearInterval(timerRef.current);
       }
-      
+
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
-      
+
       // Stop speech recognition if active
       if (speechRecognitionRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         speechRecognitionRef.current.stopRecognition();
       }
     };
@@ -652,11 +588,6 @@ const MockInterviewPage: React.FC = () => {
     setError('');
 
     try {
-      // Create a File object from the Blob for sending to the API
-      const audioFile = audioBlob 
-        ? new File([audioBlob], 'interview.wav', { type: 'audio/wav' }) 
-        : new File([], 'empty.wav');
-      
       // Use client-side analysis instead of API
       const result = await analyzeTranscript(
         transcript,
@@ -685,10 +616,6 @@ const MockInterviewPage: React.FC = () => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-  
-  const handleRoleSelection = (role: string) => {
-    // setJobTitle(role);
   };
   
   // Handle next question

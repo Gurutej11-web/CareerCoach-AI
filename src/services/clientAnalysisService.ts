@@ -1,5 +1,5 @@
 import { InterviewAnalysisResult } from './interviewService';
-import { performBertAnalysis, BertAnalysisResult } from './bertAnalysisService';
+import { performBertAnalysis } from './bertAnalysisService';
 
 /**
  * Analyze an interview transcript directly in the browser
@@ -13,7 +13,6 @@ export const analyzeTranscript = async (
   const wordCount = transcript.split(/\s+/).length;
   const fillerWords = countFillerWords(transcript);
   const fillerWordsCount = Object.values(fillerWords).reduce((a, b) => a + b, 0);
-  const averageWordsPerSentence = calculateAverageWordsPerSentence(transcript);
   const clarity = calculateClarity(transcript);
   
   // Calculate a rate score based on word count and estimated duration

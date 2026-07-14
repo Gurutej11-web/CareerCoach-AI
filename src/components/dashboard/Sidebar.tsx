@@ -6,7 +6,6 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemButton,
-  Divider,
   Paper,
   Typography,
 } from '@mui/material';
@@ -15,9 +14,6 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
-import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
-import SettingsIcon from '@mui/icons-material/Settings';
-import HelpIcon from '@mui/icons-material/Help';
 
 const menuItems = [
   {
