@@ -5,6 +5,7 @@ import HeroSection from '../components/home/HeroSection';
 import FeaturesSection from '../components/home/FeaturesSection';
 import CtaSection from '../components/home/CtaSection';
 import Footer from '../components/layout/Footer';
+import Reveal from '../components/common/Reveal';
 
 const Home: React.FC = () => {
   return (
@@ -12,8 +13,12 @@ const Home: React.FC = () => {
       <Header />
       <Box component="main" sx={{ flexGrow: 1 }}>
         <HeroSection />
-        <FeaturesSection />
-        <CtaSection />
+        <Reveal>
+          <FeaturesSection />
+        </Reveal>
+        <Reveal delay={100}>
+          <CtaSection />
+        </Reveal>
       </Box>
       <Footer />
     </Box>
