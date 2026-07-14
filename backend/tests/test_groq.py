@@ -19,8 +19,10 @@ def test_groq_connection():
     
     # Get the API key
     api_key = settings.GROQ_API_KEY
-    print(f"API Key: {api_key[:5]}...{api_key[-4:]}")
-    
+    if not api_key:
+        print("❌ GROQ_API_KEY is not set in the environment")
+        return False
+
     # Initialize the client
     client = Groq(api_key=api_key)
     
