@@ -74,7 +74,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-]
+] + [origin.strip() for origin in os.getenv('CORS_EXTRA_ORIGINS', '').split(',') if origin.strip()]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -98,7 +98,7 @@ CORS_ALLOW_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-]
+] + [origin.strip() for origin in os.getenv('CORS_EXTRA_ORIGINS', '').split(',') if origin.strip()]
 
 ROOT_URLCONF = 'backend.urls'
 
