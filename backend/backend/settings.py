@@ -26,12 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-secret-key-for-development-only'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-secret-key-for-development-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -205,7 +205,6 @@ ML_WORKSPACE_NAME = os.getenv("ML_WORKSPACE_NAME")
 
 # Groq API settings
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-print(f"GROQ_API_KEY loaded: {GROQ_API_KEY[:5]}...{GROQ_API_KEY[-4:]}") # Debug logging
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
