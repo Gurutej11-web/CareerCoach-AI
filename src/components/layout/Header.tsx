@@ -74,7 +74,11 @@ const Header: React.FC = () => {
           {isMobile ? (
             <>
               <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
-                <IconButton onClick={toggleMode} color="inherit">
+                <IconButton
+                  onClick={toggleMode}
+                  color="inherit"
+                  aria-label={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                >
                   {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
                 </IconButton>
               </Tooltip>
@@ -93,7 +97,12 @@ const Header: React.FC = () => {
                 Login/Sign Up
               </Button>
               <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
-                <IconButton onClick={toggleMode} color="inherit" sx={{ ml: 1 }}>
+                <IconButton
+                  onClick={toggleMode}
+                  color="inherit"
+                  sx={{ ml: 1 }}
+                  aria-label={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                >
                   {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
                 </IconButton>
               </Tooltip>

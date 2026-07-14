@@ -33,11 +33,12 @@ const ResumeTailoring: React.FC = () => {
     <Box sx={{ flexGrow: 1, py: 4, px: { xs: 2, md: 4 } }}>
       <Container maxWidth="xl">
         <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
-          <IconButton 
-            component={RouterLink} 
-            to="/dashboard" 
-            color="primary" 
+          <IconButton
+            component={RouterLink}
+            to="/dashboard"
+            color="primary"
             sx={{ mr: 2 }}
+            aria-label="Back to dashboard"
           >
             <ArrowBackIcon />
           </IconButton>

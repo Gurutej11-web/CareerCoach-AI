@@ -100,7 +100,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onToggleSidebar }) =>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Tooltip title={getUserDisplayName()}>
-            <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+            <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }} aria-label="Open account menu">
               <Avatar alt={getUserDisplayName()} src="/images/avatar.svg" sx={{ bgcolor: 'primary.main' }}>
                 {getUserInitials()}
               </Avatar>

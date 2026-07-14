@@ -236,17 +236,18 @@ const InterviewPanel: React.FC<InterviewPanelProps> = ({ onTranscriptionUpdate }
                 </Box>
               ) : (
                 <>
-                  <IconButton 
-                    color="primary" 
-                    sx={{ 
-                      p: 2, 
+                  <IconButton
+                    color="primary"
+                    aria-label="Start recording your answer"
+                    sx={{
+                      p: 2,
                       mb: 2,
-                      backgroundColor: 'primary.main', 
+                      backgroundColor: 'primary.main',
                       color: 'white',
                       '&:hover': {
                         backgroundColor: 'primary.dark',
                       }
-                    }} 
+                    }}
                     onClick={startRecording}
                   >
                     <MicIcon fontSize="large" />

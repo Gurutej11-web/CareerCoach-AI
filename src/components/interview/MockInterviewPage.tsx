@@ -782,22 +782,24 @@ const MockInterviewPage: React.FC = () => {
                   </Typography>
                   <Box>
                     <Tooltip title="Edit this question">
-                      <IconButton 
-                        size="small" 
-                        onClick={openEditQuestionDialog} 
+                      <IconButton
+                        size="small"
+                        onClick={openEditQuestionDialog}
                         disabled={isRecording}
                         sx={{ mr: 1 }}
+                        aria-label="Edit this question"
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     {questions.length < 10 && (
                       <Tooltip title="Add new question">
-                        <IconButton 
-                          size="small" 
+                        <IconButton
+                          size="small"
                           onClick={openAddQuestionDialog}
                           disabled={isRecording}
                           color="primary"
+                          aria-label="Add new question"
                         >
                           <AddIcon fontSize="small" />
                         </IconButton>

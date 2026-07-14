@@ -38,6 +38,9 @@ function App() {
       <NotificationProvider>
       <RecentActivityProvider>
         <Router>
+          <a href="#main-content" className="skip-link">
+            Skip to main content
+          </a>
           <AnimatedRoutes />
         </Router>
       </RecentActivityProvider>

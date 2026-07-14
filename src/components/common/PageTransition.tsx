@@ -20,10 +20,13 @@ const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   return (
     <Box
+      id="main-content"
+      tabIndex={-1}
       sx={{
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(8px)',
         transition: 'opacity 0.2s ease, transform 0.2s ease',
+        outline: 'none',
       }}
     >
       {children}
