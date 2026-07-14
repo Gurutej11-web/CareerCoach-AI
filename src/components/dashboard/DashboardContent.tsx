@@ -6,6 +6,7 @@ import ChatIcon from '@mui/icons-material/Chat';
 import QuickAccessCard from './QuickAccessCard';
 import RecentActivity from './RecentActivity';
 import StatsOverview from './StatsOverview';
+import ScoreProgressChart from './ScoreProgressChart';
 
 const quickAccessItems = [
   {
@@ -62,6 +63,8 @@ const DashboardContent: React.FC = () => {
             </Grid>
           ))}
         </Grid>
+
+        <ScoreProgressChart />
 
         <RecentActivity />
       </Container>

@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import LoadingState from '../common/LoadingState';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useRecentActivity } from '../../contexts/RecentActivityContext';
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
@@ -48,6 +49,7 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<ResumeAnalysisResult | null>(null);
   const { notify } = useNotification();
+  const { addActivity } = useRecentActivity();
 
   // Add a helper function to check if sentiment analysis is valid
   const isValidSentimentAnalysis = (sentimentData: any): boolean => {
@@ -71,6 +73,7 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
       const result = await analyzeResume(resumeFile, jobDescFile);
       console.log("Sentiment Analysis Result:", result.sentimentAnalysis); // Debug log
       setSuggestions(result);
+      addActivity('resume', `Resume Analyzed: ${result.matchScore}% match`, result.matchScore);
     } catch (err) {
       console.error('Error analyzing resume:', err);
       setError('Failed to analyze resume. Please try again.');
