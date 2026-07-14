@@ -21,7 +21,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 
 // Define API base URL
-const API_BASE_URL = 'http://localhost:8000/users/api';
+const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
 
 // Create axios instance
 const api = axios.create({

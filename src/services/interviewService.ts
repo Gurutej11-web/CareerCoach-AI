@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+
 // Interfaces for Interview Analysis
 export interface InterviewAnalysisResult {
   transcript: string;
@@ -97,7 +99,7 @@ export const analyzeInterview = async (
  */
 export const getInterviewFeedback = async (interviewId: number): Promise<InterviewAnalysisResult> => {
   try {
-    const response = await axios.get(`/api/resume/interview-feedback/${interviewId}/`);
+    const response = await axios.get(`${API_BASE_URL}/api/resume/interview-feedback/${interviewId}/`);
     return response.data;
   } catch (error) {
     console.error('Error getting interview feedback:', error);
@@ -110,7 +112,7 @@ export const getInterviewFeedback = async (interviewId: number): Promise<Intervi
  */
 export const getUserInterviews = async (): Promise<MockInterview[]> => {
   try {
-    const response = await axios.get('/api/resume/mock-interviews/');
+    const response = await axios.get(`${API_BASE_URL}/api/resume/mock-interviews/`);
     return response.data;
   } catch (error) {
     console.error('Error getting user interviews:', error);
@@ -123,7 +125,7 @@ export const getUserInterviews = async (): Promise<MockInterview[]> => {
  */
 export const getInterviewById = async (interviewId: number): Promise<MockInterview> => {
   try {
-    const response = await axios.get(`/api/resume/mock-interviews/${interviewId}/`);
+    const response = await axios.get(`${API_BASE_URL}/api/resume/mock-interviews/${interviewId}/`);
     return response.data;
   } catch (error) {
     console.error('Error getting interview details:', error);

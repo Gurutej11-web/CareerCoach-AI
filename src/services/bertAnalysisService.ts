@@ -15,7 +15,7 @@ export interface BertAnalysisResult {
  * API URL for the BERT analysis service
  * In production, this would point to your backend API
  */
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000/api';
+const API_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/api`;
 
 /**
  * Perform BERT-based analysis of interview responses
