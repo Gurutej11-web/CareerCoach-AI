@@ -40,6 +40,7 @@ const AuthForm: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const { login } = useAuth();
   const { notify } = useNotification();
@@ -60,11 +61,46 @@ const AuthForm: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const toggleForm = () => {
     setIsLogin(!isLogin);
     setError(null);
+    setFieldErrors({});
+  };
+
+  const validate = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.username.trim()) {
+      errors.username = 'Username is required';
+    }
+
+    if (!isLogin) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        errors.email = 'Enter a valid email address';
+      }
+    }
+
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else if (!isLogin && formData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    }
+
+    if (!isLogin && formData.password_confirm !== formData.password) {
+      errors.password_confirm = 'Passwords do not match';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleClickShowPassword = () => {
@@ -77,8 +113,13 @@ const AuthForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+
+    if (!validate()) {
+      return;
+    }
+
+    setLoading(true);
 
     try {
       if (isLogin) {
@@ -220,6 +261,8 @@ const AuthForm: React.FC = () => {
               sx={{ mb: 2 }}
               value={formData.username}
               onChange={handleChange}
+              error={Boolean(fieldErrors.username)}
+              helperText={fieldErrors.username}
             />
 
             {!isLogin && (
@@ -234,6 +277,8 @@ const AuthForm: React.FC = () => {
                 sx={{ mb: 2 }}
                 value={formData.email}
                 onChange={handleChange}
+                error={Boolean(fieldErrors.email)}
+                helperText={fieldErrors.email}
               />
             )}
 
@@ -319,6 +364,8 @@ const AuthForm: React.FC = () => {
               sx={{ mb: 2 }}
               value={formData.password}
               onChange={handleChange}
+              error={Boolean(fieldErrors.password)}
+              helperText={fieldErrors.password}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -346,6 +393,8 @@ const AuthForm: React.FC = () => {
                 sx={{ mb: 2 }}
                 value={formData.password_confirm}
                 onChange={handleChange}
+                error={Boolean(fieldErrors.password_confirm)}
+                helperText={fieldErrors.password_confirm}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
