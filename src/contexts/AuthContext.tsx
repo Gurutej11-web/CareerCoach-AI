@@ -1,5 +1,7 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 // Define types for authentication
 interface AuthContextType {
@@ -21,30 +23,17 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<any | null>(null);
-
-  // Check for existing tokens on mount
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const userData = localStorage.getItem('user_data');
-    
-    if (token && userData) {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(userData));
-      
-      // Set auth header for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
-  }, []);
+  const logoutRef = useRef<() => void>(() => {});
 
   // Login function
   const login = (token: string, refreshToken: string, userData: any) => {
     localStorage.setItem('access_token', token);
     localStorage.setItem('refresh_token', refreshToken);
     localStorage.setItem('user_data', JSON.stringify(userData));
-    
+
     // Set auth header for future requests
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    
+
     setIsAuthenticated(true);
     setUser(userData);
   };
@@ -54,12 +43,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
-    
+
     delete axios.defaults.headers.common['Authorization'];
-    
+
     setIsAuthenticated(false);
     setUser(null);
   };
+
+  // Keep a stable ref so the interceptor (registered once) always calls the latest logout
+  logoutRef.current = logout;
+
+  // Check for existing tokens on mount
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    const userData = localStorage.getItem('user_data');
+
+    if (token && userData) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(userData));
+
+      // Set auth header for future requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+  }, []);
+
+  // Register a response interceptor once: on a 401, try to refresh the access token
+  // using the stored refresh token and retry the original request. If refresh fails,
+  // log the user out. Without this, sessions silently die 30 minutes after login.
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status !== 401 || originalRequest._retry) {
+          return Promise.reject(error);
+        }
+
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) {
+          return Promise.reject(error);
+        }
+
+        originalRequest._retry = true;
+
+        try {
+          const { data } = await axios.post(`${API_BASE_URL}/users/api/token/refresh/`, {
+            refresh: refreshToken,
+          });
+
+          localStorage.setItem('access_token', data.access);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${data.access}`;
+          originalRequest.headers['Authorization'] = `Bearer ${data.access}`;
+
+          return axios(originalRequest);
+        } catch (refreshError) {
+          logoutRef.current();
+          return Promise.reject(refreshError);
+        }
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
