@@ -5,9 +5,11 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
 import MockInterview from './pages/MockInterview';
 import Resume from './pages/ResumeTailoring';
 import InterviewChatbot from './pages/InterviewChatbot';
+import NotFound from './pages/NotFound';
 import { RecentActivityProvider } from './contexts/RecentActivityContext';
 import PageTransition from './components/common/PageTransition';
 
@@ -19,10 +21,12 @@ function AnimatedRoutes() {
         <Route path="/login" element={<Auth />} />
         <Route path="/signup" element={<Auth />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/mock-interview" element={<MockInterview />} />
         <Route path="/resume" element={<Resume />} />
         <Route path="/chat" element={<InterviewChatbot />} />
         {/* Add more routes here as we create more pages */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </PageTransition>
   );
