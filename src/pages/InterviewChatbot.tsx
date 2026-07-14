@@ -1,11 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Box, 
-  Container, 
-  Typography, 
-  IconButton, 
-  Breadcrumbs, 
-  Link,
+import {
+  Box,
+  Container,
+  Typography,
   Paper,
   TextField,
   Button,
@@ -18,18 +15,16 @@ import {
   Tooltip,
   CircularProgress,
 } from '@mui/material';
-import { 
-  ArrowBack as ArrowBackIcon, 
-  Home as HomeIcon,
+import {
   Send as SendIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
   SupportAgent as SupportAgentIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import { Link as RouterLink } from 'react-router-dom';
 import { sendChatMessage, getChatbotFAQTopics } from '../services/resumeService';
 import { useRecentActivity } from '../contexts/RecentActivityContext';
+import PageHeader from '../components/common/PageHeader';
 
 // Interface for chat messages
 interface Message {
@@ -158,46 +153,10 @@ const InterviewChatbot: React.FC = () => {
   return (
     <Box sx={{ flexGrow: 1, py: 4, px: { xs: 2, md: 4 } }}>
       <Container maxWidth="xl">
-        <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
-          <IconButton
-            component={RouterLink}
-            to="/dashboard"
-            color="primary"
-            sx={{ mr: 2 }}
-            aria-label="Back to dashboard"
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          
-          <Box>
-            <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 1 }}>
-              <Link 
-                component={RouterLink} 
-                to="/"
-                color="inherit"
-                sx={{ display: 'flex', alignItems: 'center' }}
-              >
-                <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                Home
-              </Link>
-              <Link
-                component={RouterLink}
-                to="/dashboard"
-                color="inherit"
-              >
-                Dashboard
-              </Link>
-              <Typography color="text.primary">Interview Preparation Chatbot</Typography>
-            </Breadcrumbs>
-            
-            <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
-              Interview Preparation Chatbot
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Get answers to common interview questions and personalized advice
-            </Typography>
-          </Box>
-        </Box>
+        <PageHeader
+          title="Interview Preparation Chatbot"
+          subtitle="Get answers to common interview questions and personalized advice"
+        />
 
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
