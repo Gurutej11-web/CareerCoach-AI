@@ -4,10 +4,17 @@ import uuid
 import traceback
 from groq import Groq
 
-# Configure Groq client with the API key
-api_key = settings.GROQ_API_KEY
-print(f"Groq API Key: {api_key[:5]}...{api_key[-4:]}")  # Print first 5 and last 4 chars for debugging
-client = Groq(api_key=api_key)
+_client = None
+
+
+def get_groq_client():
+    """Lazily create the Groq client so a missing API key doesn't crash Django on startup."""
+    global _client
+    if _client is None:
+        if not settings.GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY is not configured")
+        _client = Groq(api_key=settings.GROQ_API_KEY)
+    return _client
 
 class InterviewChatbot:
     """Groq-powered interview preparation chatbot using Llama 3"""
@@ -112,7 +119,7 @@ class InterviewChatbot:
             messages.append({"role": "user", "content": user_message})
             
             # Call Groq API using Llama 3
-            response = client.chat.completions.create(
+            response = get_groq_client().chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=0.7,
