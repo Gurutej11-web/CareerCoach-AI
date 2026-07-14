@@ -55,19 +55,25 @@ const FeaturesSection: React.FC = () => {
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
-                  transition: 'transform 0.2s',
+                  transition: 'transform 0.25s ease, box-shadow 0.25s ease',
                   '&:hover': {
-                    transform: 'translateY(-4px)',
+                    transform: 'translateY(-6px)',
+                    boxShadow: 8,
+                    '& .feature-icon': {
+                      transform: 'scale(1.15) rotate(-4deg)',
+                    },
                   },
                 }}
               >
                 <CardContent sx={{ flexGrow: 1, textAlign: 'center' }}>
                   <Box
+                    className="feature-icon"
                     sx={{
                       display: 'flex',
                       justifyContent: 'center',
                       mb: 2,
                       color: 'primary.main',
+                      transition: 'transform 0.25s ease',
                     }}
                   >
                     {feature.icon}

@@ -44,15 +44,27 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'transform 0.2s',
+        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
         '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 6,
+          transform: 'translateY(-6px)',
+          boxShadow: 8,
+          '& .quick-access-icon': {
+            transform: 'scale(1.15)',
+          },
         },
       }}
     >
       <CardContent sx={{ flexGrow: 1, p: 3 }}>
-        <Box sx={{ display: 'flex', mb: 2, color: 'primary.main' }}>
+        <Box
+          className="quick-access-icon"
+          sx={{
+            display: 'flex',
+            mb: 2,
+            color: 'primary.main',
+            transition: 'transform 0.25s ease',
+            width: 'fit-content',
+          }}
+        >
           {icon}
         </Box>
         <Typography gutterBottom variant="h5" component="h2" fontWeight="bold">
