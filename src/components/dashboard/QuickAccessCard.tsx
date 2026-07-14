@@ -35,7 +35,7 @@ const QuickAccessCard: React.FC<QuickAccessCardProps> = ({
     // Create a description if not provided
     const description = activityDescription || `${title} started`;
     // Add this action to recent activities
-    addActivity(activityType, description, icon);
+    addActivity(activityType, description);
   };
 
   return (

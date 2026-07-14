@@ -10,7 +10,18 @@ import {
   Box
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
-import { useRecentActivity } from '../../contexts/RecentActivityContext';
+import DescriptionIcon from '@mui/icons-material/Description';
+import MicIcon from '@mui/icons-material/Mic';
+import ChatIcon from '@mui/icons-material/Chat';
+import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
+import { useRecentActivity, Activity } from '../../contexts/RecentActivityContext';
+
+const activityIcons: Record<Activity['type'], React.ReactNode> = {
+  resume: <DescriptionIcon color="primary" />,
+  interview: <MicIcon color="primary" />,
+  chatbot: <ChatIcon color="primary" />,
+  application: <BusinessCenterIcon color="primary" />,
+};
 
 const RecentActivity: React.FC = () => {
   // Get activities from the context
@@ -44,7 +55,7 @@ const RecentActivity: React.FC = () => {
             <React.Fragment key={activity.id}>
               {index > 0 && <Divider component="li" />}
               <ListItem sx={{ py: 1.5 }}>
-                <ListItemIcon>{activity.icon}</ListItemIcon>
+                <ListItemIcon>{activityIcons[activity.type]}</ListItemIcon>
                 <ListItemText
                   primary={activity.description}
                   secondary={activity.date}

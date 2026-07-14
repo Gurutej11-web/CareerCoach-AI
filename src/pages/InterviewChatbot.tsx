@@ -26,7 +26,6 @@ import {
   Person as PersonIcon,
   SupportAgent as SupportAgentIcon,
   Info as InfoIcon,
-  Chat as ChatIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { sendChatMessage, getChatbotFAQTopics } from '../services/resumeService';
@@ -112,9 +111,8 @@ const InterviewChatbot: React.FC = () => {
     try {
       // Record this activity in recent activities
       addActivity(
-        'chatbot', 
-        `Chatbot: Asked about "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`,
-        <ChatIcon color="primary" />
+        'chatbot',
+        `Chatbot: Asked about "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`
       );
 
       // Send to backend and get response

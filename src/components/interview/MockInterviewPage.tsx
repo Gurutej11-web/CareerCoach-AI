@@ -599,8 +599,7 @@ const MockInterviewPage: React.FC = () => {
       // Add activity when recording starts
       addActivity(
         'interview',
-        `Started Interview: Question ${currentQuestionIndex + 1}`,
-        <MicIcon color="primary" />
+        `Started Interview: Question ${currentQuestionIndex + 1}`
       );
     } catch (error) {
       console.error('Error starting recording:', error);
@@ -637,8 +636,7 @@ const MockInterviewPage: React.FC = () => {
       const duration = recordingDuration || 0;
       addActivity(
         'interview',
-        `Completed Interview Recording (${duration}s)`,
-        <StopIcon color="primary" />
+        `Completed Interview Recording (${duration}s)`
       );
     }
   };
@@ -668,11 +666,11 @@ const MockInterviewPage: React.FC = () => {
       setAnalysisResult(result);
       
       // Add activity when interview is analyzed
-      const score = result?.content_analysis?.overall_score || 'N/A';
+      const score = result?.content_analysis?.overall_score;
       addActivity(
         'interview',
-        `Interview Analyzed: Score ${score}`,
-        <InsertChartIcon color="primary" />
+        `Interview Analyzed: Score ${score ?? 'N/A'}`,
+        typeof score === 'number' ? score : undefined
       );
     } catch (error) {
       console.error('Error analyzing interview:', error);
