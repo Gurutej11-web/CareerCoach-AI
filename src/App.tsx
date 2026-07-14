@@ -8,6 +8,7 @@ import PageTransition from './components/common/PageTransition';
 import LoadingState from './components/common/LoadingState';
 import BackToTop from './components/common/BackToTop';
 import TopProgressBar from './components/common/TopProgressBar';
+import CommandPalette from './components/common/CommandPalette';
 
 // Code-split every route except the landing page, which should paint immediately.
 const Auth = lazy(() => import('./pages/Auth'));
@@ -59,6 +60,7 @@ function App() {
           <TopProgressBar />
           <AnimatedRoutes />
           <BackToTop />
+          <CommandPalette />
         </Router>
       </RecentActivityProvider>
       </NotificationProvider>
