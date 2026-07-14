@@ -35,7 +35,7 @@ const features = [
 
 const FeaturesSection: React.FC = () => {
   return (
-    <Box sx={{ py: 8, bgcolor: 'background.default' }}>
+    <Box id="features" sx={{ py: 8, bgcolor: 'background.default', scrollMarginTop: '80px' }}>
       <Container maxWidth="lg">
         <Typography
           component="h2"
