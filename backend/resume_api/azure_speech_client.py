@@ -2,7 +2,6 @@ import os
 import time
 import json
 import wave
-import pyaudio
 import numpy as np
 import statistics
 from io import BytesIO
