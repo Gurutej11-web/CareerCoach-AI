@@ -37,6 +37,7 @@ import {
   SentimentVerySatisfied as SentimentVerySatisfiedIcon,
 } from '@mui/icons-material';
 import { analyzeResume, ResumeAnalysisResult } from '../../services/resumeService';
+import { generateResumeReportPdf } from '../../utils/pdfReport';
 
 interface SuggestionsPanelProps {
   resumeFile: File | null;
@@ -81,6 +82,12 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadReport = () => {
+    if (!suggestions) return;
+    generateResumeReportPdf(suggestions);
+    notify('Report downloaded', 'success');
   };
 
   const handleReset = () => {
@@ -179,9 +186,18 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
             color={suggestions.matchScore > 70 ? "success" : "warning"}
             size="small"
           />
-          <Button 
-            variant="outlined" 
-            color="primary" 
+          <Button
+            variant="outlined"
+            color="primary"
+            size="small"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadReport}
+          >
+            Download PDF
+          </Button>
+          <Button
+            variant="outlined"
+            color="primary"
             size="small"
             onClick={handleReset}
           >
