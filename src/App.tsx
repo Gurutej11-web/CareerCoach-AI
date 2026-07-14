@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeModeProvider } from './contexts/ThemeModeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
@@ -12,6 +13,7 @@ import { RecentActivityProvider } from './contexts/RecentActivityContext';
 function App() {
   return (
     <ThemeModeProvider>
+      <NotificationProvider>
       <RecentActivityProvider>
         <Router>
           <Routes>
@@ -26,6 +28,7 @@ function App() {
           </Routes>
         </Router>
       </RecentActivityProvider>
+      </NotificationProvider>
     </ThemeModeProvider>
   );
 }

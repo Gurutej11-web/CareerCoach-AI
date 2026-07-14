@@ -18,6 +18,7 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import loginIllustration from '../../assets/images/login-illustration.png';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotification } from '../../contexts/NotificationContext';
 
 // Define API base URL
 const API_BASE_URL = 'http://localhost:8000/users/api';
@@ -41,6 +42,7 @@ const AuthForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { notify } = useNotification();
 
   // Form fields
   const [formData, setFormData] = useState({
@@ -92,7 +94,8 @@ const AuthForm: React.FC = () => {
           response.data.refresh,
           { username: formData.username }
         );
-        
+
+        notify(`Welcome back, ${formData.username}!`, 'success');
         // Navigate to dashboard
         navigate('/dashboard');
       } else {
@@ -105,7 +108,8 @@ const AuthForm: React.FC = () => {
           response.data.refresh,
           response.data.user
         );
-        
+
+        notify('Account created successfully!', 'success');
         // Navigate to dashboard
         navigate('/dashboard');
       }
@@ -117,8 +121,10 @@ const AuthForm: React.FC = () => {
           .map(([key, value]) => `${key}: ${value}`)
           .join(', ');
         setError(errorMessage);
+        notify(errorMessage, 'error');
       } else {
         setError('Authentication failed. Please try again.');
+        notify('Authentication failed. Please try again.', 'error');
       }
     } finally {
       setLoading(false);
