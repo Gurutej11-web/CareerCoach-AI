@@ -82,6 +82,12 @@ const Footer: React.FC = () => {
               <Link component={RouterLink} to="/dashboard" variant="body2" color="text.secondary" underline="hover">
                 Dashboard
               </Link>
+              <Link component={RouterLink} to="/terms" variant="body2" color="text.secondary" underline="hover">
+                Terms of Service
+              </Link>
+              <Link component={RouterLink} to="/privacy" variant="body2" color="text.secondary" underline="hover">
+                Privacy Policy
+              </Link>
             </Stack>
           </Grid>
         </Grid>

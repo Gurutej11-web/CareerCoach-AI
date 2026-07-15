@@ -217,3 +217,19 @@ def confirm_password_reset(request):
     user.save()
 
     return Response({'detail': 'Your password has been reset. You can now log in.'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def delete_account(request):
+    """
+    Permanently delete the authenticated user's account and everything tied
+    to it (resumes, analyses, mock interviews, chat history, activity log —
+    all CASCADE from the User FK). Requires the current password as
+    confirmation since this can't be undone.
+    """
+    password = request.data.get('password', '')
+    if not request.user.check_password(password):
+        return Response({'error': 'Incorrect password.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    request.user.delete()
+    return Response({'detail': 'Your account has been permanently deleted.'}, status=status.HTTP_200_OK)

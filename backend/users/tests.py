@@ -99,3 +99,24 @@ class PasswordResetTests(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteAccountTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='todelete', password='CorrectPass123!')
+        self.client.force_authenticate(user=self.user)
+
+    def test_delete_requires_correct_password(self):
+        response = self.client.post('/users/api/delete-account/', {'password': 'WrongPassword'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(User.objects.filter(username='todelete').exists())
+
+    def test_delete_removes_the_account(self):
+        response = self.client.post('/users/api/delete-account/', {'password': 'CorrectPass123!'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(User.objects.filter(username='todelete').exists())
+
+    def test_delete_requires_authentication(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.post('/users/api/delete-account/', {'password': 'CorrectPass123!'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

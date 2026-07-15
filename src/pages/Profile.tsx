@@ -13,10 +13,16 @@ import {
   Alert,
   CircularProgress,
   Drawer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import Sidebar from '../components/dashboard/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 // API base URL
@@ -42,13 +48,17 @@ interface UserProfileData {
 }
 
 const Profile: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -200,6 +210,26 @@ const Profile: React.FC = () => {
       setError('Failed to change password. Please check your current password.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      setError(null);
+      const token = localStorage.getItem('access_token');
+      await axios.post(
+        `${API_BASE_URL}/delete-account/`,
+        { password: deletePassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setDeleteDialogOpen(false);
+      logout();
+      navigate('/');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete account. Please check your password and try again.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -441,12 +471,59 @@ const Profile: React.FC = () => {
                       </Grid>
                     </Grid>
                   </form>
+
+                  <Typography variant="h5" gutterBottom sx={{ mt: 6, color: 'error.main' }}>
+                    Danger Zone
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
+                  <Typography color="text.secondary" sx={{ mb: 2 }}>
+                    Permanently delete your account and all associated data — resumes, analyses, mock
+                    interviews, chat history, and activity log. This cannot be undone.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    Delete my account
+                  </Button>
                 </>
               )}
             </Paper>
           </Container>
         </Box>
       </Box>
+
+      <Dialog open={deleteDialogOpen} onClose={() => !deleting && setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete your account?</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            This permanently deletes your account and everything tied to it. This action cannot be
+            undone. Enter your password to confirm.
+          </DialogContentText>
+          <TextField
+            fullWidth
+            type="password"
+            label="Password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAccount}
+            color="error"
+            variant="contained"
+            disabled={deleting || !deletePassword}
+          >
+            {deleting ? <CircularProgress size={24} /> : 'Permanently delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       
       {/* Success notification */}
       <Snackbar 
