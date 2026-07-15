@@ -13,14 +13,12 @@ import HistoryIcon from '@mui/icons-material/History';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
-import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import { useRecentActivity, Activity } from '../../contexts/RecentActivityContext';
 
 const activityIcons: Record<Activity['type'], React.ReactNode> = {
   resume: <DescriptionIcon color="primary" />,
   interview: <MicIcon color="primary" />,
   chatbot: <ChatIcon color="primary" />,
-  application: <BusinessCenterIcon color="primary" />,
 };
 
 interface RecentActivityProps {

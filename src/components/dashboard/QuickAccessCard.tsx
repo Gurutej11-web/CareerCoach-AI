@@ -7,7 +7,7 @@ import {
   Box,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { useRecentActivity } from '../../contexts/RecentActivityContext';
+import { useRecentActivity, Activity } from '../../contexts/RecentActivityContext';
 
 interface QuickAccessCardProps {
   title: string;
@@ -15,7 +15,7 @@ interface QuickAccessCardProps {
   icon: ReactNode;
   buttonText: string;
   linkTo: string;
-  activityType: 'resume' | 'interview' | 'chatbot' | 'application';
+  activityType: Activity['type'];
   activityDescription?: string;
 }
 
