@@ -22,12 +22,19 @@ from rest_framework import routers
 from interviews.views import bert_analysis, InterviewAnalysisViewSet
 from django.contrib.auth import views as auth_views
 from django.views.generic import TemplateView
+from django.http import JsonResponse
+
+
+def health_check(request):
+    """Lightweight liveness endpoint for uptime monitors and Render health checks."""
+    return JsonResponse({'status': 'ok'})
 
 # Create a router for REST API
 router = routers.DefaultRouter()
 router.register(r'interview-analyses', InterviewAnalysisViewSet)
 
 urlpatterns = [
+    path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/resume/', include('resume_api.urls')),
     # New interview analysis API endpoints

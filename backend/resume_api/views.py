@@ -1,15 +1,34 @@
 from django.shortcuts import render
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from django.conf import settings
 from django.contrib.auth.models import User
 import os
 import json
 import tempfile
 import uuid
+
+from .pagination import ActivityPagination
+
+# Uploaded files are read fully into memory for text extraction, so cap
+# their size well below what would strain the 512MB Render free-tier worker.
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
+ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'docx', 'doc', 'txt'}
+ALLOWED_AUDIO_EXTENSIONS = {'wav', 'webm', 'mp3', 'ogg', 'm4a'}
+
+
+def _validate_upload(file_obj, allowed_extensions, label):
+    """Returns an error string if the upload fails size/type checks, else None."""
+    if file_obj.size > MAX_UPLOAD_SIZE_BYTES:
+        return f"{label} is too large ({file_obj.size // (1024 * 1024)}MB). Maximum size is 10MB."
+    ext = file_obj.name.rsplit('.', 1)[-1].lower() if '.' in file_obj.name else ''
+    if ext not in allowed_extensions:
+        return f"{label} has an unsupported file type '.{ext}'. Allowed types: {', '.join(sorted(allowed_extensions))}."
+    return None
 
 from .models import Resume, JobDescription, ResumeAnalysis, ChatMessage, MockInterview, UserActivity
 from .serializers import (
@@ -49,7 +68,12 @@ def analyze_resume(request):
         return Response({
             'error': 'Both resume and job description files are required.'
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
+    for upload, label in ((resume_file, 'Resume'), (job_desc_file, 'Job description')):
+        validation_error = _validate_upload(upload, ALLOWED_DOCUMENT_EXTENSIONS, label)
+        if validation_error:
+            return Response({'error': validation_error}, status=status.HTTP_400_BAD_REQUEST)
+
     analyzer = ResumeAnalyzer()
     
     # Extract text from files
@@ -106,7 +130,11 @@ def analyze_interview(request):
         return Response({
             'error': 'Audio file is required.'
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
+    validation_error = _validate_upload(audio_file, ALLOWED_AUDIO_EXTENSIONS, 'Audio recording')
+    if validation_error:
+        return Response({'error': validation_error}, status=status.HTTP_400_BAD_REQUEST)
+
     # Get job description text if provided
     job_description_text = ""
     job_description = None
@@ -183,6 +211,7 @@ def get_interview_feedback(request, interview_id):
     
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
 def interview_chat(request):
     """
     Process a user message to the interview preparation chatbot and get a response.
@@ -243,6 +272,11 @@ def interview_chat(request):
             'error': 'An unexpected error occurred.',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# @api_view wraps this in a generated APIView subclass exposed as `.cls`;
+# throttle_scope must be set there (not on the function) for ScopedRateThrottle
+# to find it — this is the public, unauthenticated endpoint most exposed to abuse.
+interview_chat.cls.throttle_scope = 'interview_chat'
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -381,11 +415,12 @@ class UserActivityViewSet(viewsets.ModelViewSet):
     data lives with the account, not the browser/device.
     """
     serializer_class = UserActivitySerializer
+    pagination_class = ActivityPagination
 
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            return UserActivity.objects.filter(user=user).order_by('-created_at')[:50]
+            return UserActivity.objects.filter(user=user).order_by('-created_at')
         return UserActivity.objects.none()
 
     def perform_create(self, serializer):
