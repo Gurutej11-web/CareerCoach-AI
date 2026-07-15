@@ -35,6 +35,12 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Render injects this automatically for every service — include it so the
+# deployed backend doesn't need ALLOWED_HOSTS set manually.
+_render_hostname = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if _render_hostname:
+    ALLOWED_HOSTS.append(_render_hostname)
+
 
 # Application definition
 
