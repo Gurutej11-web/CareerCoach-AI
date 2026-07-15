@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Box, 
-  Button, 
-  Typography, 
+import {
+  Box,
+  Button,
+  Typography,
   Paper,
-  Container,
   CircularProgress,
   Chip,
   Card,
@@ -22,7 +21,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Tooltip
+  Tooltip,
+  Stepper,
+  Step,
+  StepLabel
 } from '@mui/material';
 import { 
   Mic as MicIcon,
@@ -385,7 +387,7 @@ const MockInterviewPage: React.FC = () => {
   
   // State for custom job title and questions
   const [questions, setQuestions] = useState<string[]>([
-    'Tell me about your youself.',
+    'Tell me about yourself.',
     'How do you approach debugging a complex issue?',
     'What are your greatest strengths?'
   ]);
@@ -540,10 +542,18 @@ const MockInterviewPage: React.FC = () => {
     } catch (error) {
       console.error('Error starting recording:', error);
       setIsRecording(false);
-      setError(`Failed to start recording: ${error}`);
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        setError(
+          "We need microphone access to record your answer. Please allow microphone permissions for this site in your browser, then try again."
+        );
+      } else if (error instanceof DOMException && error.name === 'NotFoundError') {
+        setError("We couldn't find a microphone. Please connect one and try again.");
+      } else {
+        setError("Something went wrong starting the recording. Please check your microphone and try again.");
+      }
     }
   };
-  
+
   // Handle stopping the recording
   const handleStopRecording = () => {
     if (mediaRecorder && isRecording) {
@@ -605,7 +615,7 @@ const MockInterviewPage: React.FC = () => {
       );
     } catch (error) {
       console.error('Error analyzing interview:', error);
-      setError(`Failed to analyze interview: ${error}`);
+      setError("We couldn't analyze your answer just now. Please try again in a moment.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -681,19 +691,26 @@ const MockInterviewPage: React.FC = () => {
     setError('');
   };
   
+  // Which step to highlight: pick a question -> record -> review feedback
+  const activeStep = analysisResult ? 2 : (audioBlob || isRecording) ? 1 : 0;
+  const steps = ['Pick a question', 'Record your answer', 'Review your feedback'];
+
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Mock Interview Practice
-      </Typography>
-      
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="body1" paragraph>
-          Practice your interview skills by recording responses to common interview questions. 
-          Select a job field below to get relevant questions for your industry.
+    <Box>
+      <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, mb: 4, bgcolor: 'action.hover', borderRadius: 2 }}>
+        <Stepper activeStep={activeStep} alternativeLabel>
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
+          Pick a question below, click the microphone to record your spoken answer, then get instant
+          AI feedback on your clarity, pacing, and how well you covered the key points.
         </Typography>
-      </Box>
-      
+      </Paper>
+
       <Grid container spacing={4}>
         <Grid item xs={12} md={6}>
           <Card elevation={3}>
@@ -736,6 +753,9 @@ const MockInterviewPage: React.FC = () => {
                 </Box>
                 <Typography variant="body1">
                   {questions[currentQuestionIndex]}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  Want a different question? Use the icons above to edit this one or add your own.
                 </Typography>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
                   <Button
@@ -787,13 +807,13 @@ const MockInterviewPage: React.FC = () => {
                         </Typography>
                       </Box>
                     </Box>
-                    <Typography variant="body2" color="error" sx={{ mb: 2 }}>
-                      Recording in progress...
+                    <Typography variant="body2" color="error" sx={{ mb: 2, fontWeight: 600 }}>
+                      We're listening — take your time
                     </Typography>
-                    <Button 
-                      variant="contained" 
-                      color="error" 
-                      startIcon={<StopIcon />} 
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<StopIcon />}
                       onClick={handleStopRecording}
                     >
                       Stop Recording
@@ -832,8 +852,8 @@ const MockInterviewPage: React.FC = () => {
                     >
                       <MicIcon sx={{ fontSize: 40 }} />
                     </IconButton>
-                    <Typography variant="body2">
-                      {transcript ? "Record a new response" : "Click to start recording your answer"}
+                    <Typography variant="body2" fontWeight={500}>
+                      {transcript ? "Ready to try again? Click to record a new response" : "Ready when you are — click the microphone to start"}
                     </Typography>
                   </>
                 )}
@@ -993,7 +1013,7 @@ const MockInterviewPage: React.FC = () => {
         }
         `}
       </style>
-    </Container>
+    </Box>
   );
 };
 
