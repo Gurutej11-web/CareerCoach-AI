@@ -23,6 +23,7 @@ from interviews.views import bert_analysis, InterviewAnalysisViewSet
 from django.contrib.auth import views as auth_views
 from django.views.generic import TemplateView
 from django.http import JsonResponse
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 
 def health_check(request):
@@ -36,14 +37,25 @@ router.register(r'interview-analyses', InterviewAnalysisViewSet)
 urlpatterns = [
     path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
+
+    # OpenAPI schema + interactive docs (Swagger UI / ReDoc)
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
     path('api/resume/', include('resume_api.urls')),
     # New interview analysis API endpoints
     path('api/', include(router.urls)),
     path('api/interview/bert-analysis/', bert_analysis, name='bert-analysis'),
-    
+
+    # v1 alias of the same API surface — future breaking changes get a v2
+    # prefix instead of moving existing routes out from under the frontend.
+    path('api/v1/resume/', include('resume_api.urls')),
+    path('api/v1/', include(router.urls)),
+
     # User authentication and management
     path('users/', include('users.urls')),
-    
+
     # Django auth views
     path('login/', auth_views.LoginView.as_view(template_name='users/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),

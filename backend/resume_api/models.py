@@ -91,6 +91,9 @@ class UserActivity(models.Model):
     class Meta:
         verbose_name_plural = "User Activities"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
 
     def __str__(self):
         return f"{self.activity_type}: {self.description} - {self.user.username}"

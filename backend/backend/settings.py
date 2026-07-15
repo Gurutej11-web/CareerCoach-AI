@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     
     # Third-party apps
     'rest_framework',
+    'drf_spectacular',
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -180,6 +181,14 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'interview_chat': '30/minute',
     },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'CareerCoach AI API',
+    'DESCRIPTION': 'REST API for resume tailoring, mock interviews, and the interview-prep chatbot.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 # JWT Settings
