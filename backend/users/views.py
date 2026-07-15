@@ -4,6 +4,13 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from .models import Profile
 from .forms import ProfileForm
 
@@ -135,9 +142,78 @@ def logout_view(request):
         refresh_token = request.data.get('refresh')
         token = RefreshToken(refresh_token)
         token.blacklist()
-        
-        return Response({'detail': 'Successfully logged out'}, 
+
+        return Response({'detail': 'Successfully logged out'},
                         status=status.HTTP_200_OK)
     except Exception as e:
-        return Response({'detail': str(e)}, 
+        return Response({'detail': str(e)},
                         status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_password_reset(request):
+    """
+    Send a password-reset link to the given email if an account exists.
+    Always returns 200 with a generic message regardless of whether the
+    email is registered, so this endpoint can't be used to enumerate accounts.
+    """
+    email = request.data.get('email', '').strip()
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    generic_response = Response(
+        {'detail': 'If an account with that email exists, a password reset link has been sent.'},
+        status=status.HTTP_200_OK,
+    )
+
+    user = User.objects.filter(email__iexact=email).first()
+    if not user:
+        return generic_response
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+
+    send_mail(
+        subject='Reset your CareerCoach AI password',
+        message=(
+            f"Hi {user.username},\n\n"
+            f"Click the link below to reset your CareerCoach AI password:\n{reset_url}\n\n"
+            "If you didn't request this, you can safely ignore this email."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=True,
+    )
+
+    return generic_response
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def confirm_password_reset(request):
+    """Validate the uid/token pair from the reset link and set a new password."""
+    uidb64 = request.data.get('uid', '')
+    token = request.data.get('token', '')
+    new_password = request.data.get('new_password', '')
+
+    if not uidb64 or not token or not new_password:
+        return Response({'error': 'uid, token, and new_password are all required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+        return Response({'error': 'This reset link is invalid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not default_token_generator.check_token(user, token):
+        return Response({'error': 'This reset link is invalid or has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_password(new_password, user=user)
+    except DjangoValidationError as e:
+        return Response({'error': ' '.join(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_password)
+    user.save()
+
+    return Response({'detail': 'Your password has been reset. You can now log in.'}, status=status.HTTP_200_OK)

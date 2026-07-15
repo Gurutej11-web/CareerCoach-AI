@@ -230,6 +230,21 @@ ML_WORKSPACE_NAME = os.getenv("ML_WORKSPACE_NAME")
 # Groq API settings
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+# The deployed React app's origin, used to build links (e.g. password-reset)
+# that need to point at the SPA rather than this Django backend.
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
+# Email — defaults to printing to the console since no SMTP provider is
+# configured. Set EMAIL_HOST/EMAIL_HOST_USER/EMAIL_HOST_PASSWORD (and this
+# to 'django.core.mail.backends.smtp.EmailBackend') to send real email.
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@careercoach-ai.local')
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 

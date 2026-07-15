@@ -12,6 +12,8 @@ import CommandPalette from './components/common/CommandPalette';
 
 // Code-split every route except the landing page, which should paint immediately.
 const Auth = lazy(() => import('./pages/Auth'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Profile = lazy(() => import('./pages/Profile'));
 const MockInterview = lazy(() => import('./pages/MockInterview'));
@@ -35,6 +37,8 @@ function AnimatedRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Auth />} />
           <Route path="/signup" element={<Auth />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/mock-interview" element={<MockInterview />} />
