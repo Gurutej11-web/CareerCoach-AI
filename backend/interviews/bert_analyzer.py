@@ -1,23 +1,16 @@
 """
-BERT Analyzer Module for Interview Responses
-This module provides functions to analyze interview transcripts using BERT-based models
-"""
-import os
-import json
-from typing import Dict, List, Any
+Analyzer module for interview responses.
 
-# Optional: Catch import errors to handle cases where transformers/torch aren't installed
-try:
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-    from transformers import BertTokenizer, BertModel
-    import torch
-    import numpy as np
-    TRANSFORMERS_AVAILABLE = True
-    print("Successfully imported transformers and torch")
-except ImportError as e:
-    TRANSFORMERS_AVAILABLE = False
-    print(f"Error importing transformers and torch: {str(e)}")
-    print("BERT models will not be available. Using fallback text analysis methods.")
+Note: this previously eagerly loaded a BERT model plus a ~1.6GB
+facebook/bart-large-mnli zero-shot classifier at import time via
+_extract_keywords_with_bert(), but analyze() never actually called that
+method (it always used the simple string-matching path instead — see the
+comment in analyze() below). That dead weight was enough to crash the
+process on memory-constrained hosts, so the heavy ML loading was removed
+entirely. If BERT-based keyword extraction is wanted again, load the model
+lazily on first use inside a request, not at module import time.
+"""
+from typing import Dict, List, Any
 
 # Dictionary of question types and relevant keywords
 QUESTION_KEYWORDS = {
@@ -29,43 +22,9 @@ QUESTION_KEYWORDS = {
 
 class BertAnalyzer:
     """
-    Class for analyzing interview transcripts using BERT-based models
+    Analyzes interview transcripts (see module docstring re: the name).
     """
-    def __init__(self):
-        self.model_loaded = False
-        self.tokenizer = None
-        self.model = None
-        self.zero_shot_classifier = None
-        
-        # Try to load models if transformers is available
-        if TRANSFORMERS_AVAILABLE:
-            try:
-                print("Attempting to load BERT models...")
-                # Load BERT model for embeddings
-                self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-                print("Tokenizer loaded successfully")
-                
-                self.model = BertModel.from_pretrained('bert-base-uncased')
-                print("BERT model loaded successfully")
-                
-                # Load zero-shot classification model for topic detection
-                self.zero_shot_classifier = pipeline(
-                    "zero-shot-classification",
-                    model="facebook/bart-large-mnli",
-                    device=0 if torch.cuda.is_available() else -1
-                )
-                print("Zero-shot classifier loaded successfully")
-                
-                self.model_loaded = True
-                print("All BERT models loaded successfully")
-            except Exception as e:
-                print(f"Error loading BERT models: {e}")
-                import traceback
-                print(traceback.format_exc())
-                print("Using fallback text analysis methods")
-        else:
-            print("Transformers not available. Using fallback text analysis methods.")
-    
+
     def _determine_question_type(self, question: str) -> str:
         """Determine the type of interview question asked"""
         question_lower = question.lower()
@@ -89,68 +48,6 @@ class BertAnalyzer:
             return 'data-driven'
         else:
             return 'basic'
-    
-    def _extract_keywords_with_bert(self, transcript: str, question_type: str) -> Dict[str, List[str]]:
-        """Extract keywords from the transcript using BERT embeddings"""
-        # If models aren't available, fall back to simple matching
-        if not self.model_loaded:
-            print("Models not loaded. Using simple keyword extraction.")
-            return self._extract_keywords_simple(transcript, question_type)
-        
-        try:
-            # For very long transcripts, truncate to avoid memory issues
-            if len(transcript) > 5000:
-                print(f"Transcript too long ({len(transcript)} chars). Truncating to 5000 chars for BERT analysis.")
-                transcript = transcript[:5000]
-            
-            # Get candidate keywords for this question type
-            candidate_keywords = QUESTION_KEYWORDS[question_type]
-            print(f"Analyzing transcript against {len(candidate_keywords)} candidate keywords for '{question_type}'")
-            
-            # Encode the transcript
-            print("Encoding transcript with BERT tokenizer")
-            transcript_inputs = self.tokenizer(transcript, return_tensors="pt", padding=True, truncation=True, max_length=512)
-            with torch.no_grad():
-                transcript_output = self.model(**transcript_inputs)
-            transcript_embedding = transcript_output.last_hidden_state.mean(dim=1)
-            print("Transcript successfully encoded")
-            
-            # Compute similarity with candidate keywords
-            relevant_keywords = []
-            missing_keywords = []
-            
-            print("Computing similarity with candidate keywords")
-            for keyword in candidate_keywords:
-                # Encode the keyword
-                keyword_inputs = self.tokenizer(keyword, return_tensors="pt", padding=True, truncation=True)
-                with torch.no_grad():
-                    keyword_output = self.model(**keyword_inputs)
-                keyword_embedding = keyword_output.last_hidden_state.mean(dim=1)
-                
-                # Calculate cosine similarity
-                cos_sim = torch.nn.functional.cosine_similarity(transcript_embedding, keyword_embedding).item()
-                
-                # Determine if keyword is relevant based on similarity threshold
-                if cos_sim > 0.4 or keyword.lower() in transcript.lower():
-                    relevant_keywords.append(keyword)
-                else:
-                    missing_keywords.append(keyword)
-            
-            print(f"BERT keyword analysis complete. Found {len(relevant_keywords)} relevant keywords.")
-            return {
-                "relevantKeywords": relevant_keywords,
-                "missingKeywords": missing_keywords
-            }
-        except torch.cuda.OutOfMemoryError as e:
-            print(f"CUDA out of memory error in BERT keyword extraction: {e}")
-            print("Falling back to simple keyword extraction")
-            return self._extract_keywords_simple(transcript, question_type)
-        except Exception as e:
-            print(f"Error in BERT keyword extraction: {e}")
-            import traceback
-            print(traceback.format_exc())
-            print("Falling back to simple keyword extraction")
-            return self._extract_keywords_simple(transcript, question_type)
     
     def _extract_keywords_simple(self, transcript: str, question_type: str) -> Dict[str, List[str]]:
         """Fallback method for keyword extraction using simple string matching"""
@@ -293,24 +190,20 @@ class BertAnalyzer:
     
     def analyze(self, transcript: str, question: str) -> Dict[str, Any]:
         """
-        Analyze an interview transcript using BERT and return structured analysis results
-        
+        Analyze an interview transcript and return structured analysis results.
+
         Args:
             transcript: The interview transcript to analyze
             question: The interview question that was asked
-            
+
         Returns:
             Dictionary containing analysis results including keywords, suggestions, etc.
         """
         # Determine question type and transcript context
         question_type = self._determine_question_type(question)
         transcript_context = self._determine_transcript_context(transcript)
-        
-        # Extract keywords using simple string matching (not BERT)
-        # This reverts to the original approach as requested
+
         keyword_results = self._extract_keywords_simple(transcript, question_type)
-        
-        # Generate suggestions and strengths (still using BERT contextual understanding)
         suggestions = self._generate_suggestions(transcript_context, question_type)
         strengths = self._generate_strengths(transcript_context, question_type)
         
