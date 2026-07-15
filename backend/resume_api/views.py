@@ -11,16 +11,17 @@ import json
 import tempfile
 import uuid
 
-from .models import Resume, JobDescription, ResumeAnalysis, ChatMessage, MockInterview
+from .models import Resume, JobDescription, ResumeAnalysis, ChatMessage, MockInterview, UserActivity
 from .serializers import (
-    ResumeSerializer, 
-    JobDescriptionSerializer, 
+    ResumeSerializer,
+    JobDescriptionSerializer,
     ResumeAnalysisSerializer,
     ResumeAnalysisResultSerializer,
     MockInterviewSerializer,
     InterviewAnalysisResultSerializer,
     InterviewFeedbackSerializer,
-    ChatMessageSerializer
+    ChatMessageSerializer,
+    UserActivitySerializer
 )
 from .resume_analyzer import ResumeAnalyzer
 from .interview_analyzer import InterviewAnalyzer
@@ -371,4 +372,21 @@ class MockInterviewViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Set the user when creating a new mock interview"""
+        serializer.save(user=self.request.user)
+
+class UserActivityViewSet(viewsets.ModelViewSet):
+    """
+    Per-account dashboard activity log (stats, score chart, achievements,
+    recent-activity feed). Every request is scoped to request.user, so this
+    data lives with the account, not the browser/device.
+    """
+    serializer_class = UserActivitySerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return UserActivity.objects.filter(user=user).order_by('-created_at')[:50]
+        return UserActivity.objects.none()
+
+    def perform_create(self, serializer):
         serializer.save(user=self.request.user)

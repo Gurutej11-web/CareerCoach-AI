@@ -69,6 +69,32 @@ class MockInterview(models.Model):
     def __str__(self):
         return f"Mock Interview: {self.title} - {self.user.username}"
     
+class UserActivity(models.Model):
+    """
+    Lightweight per-account activity log powering the dashboard's stats,
+    score chart, achievements, and recent-activity feed. Stored server-side
+    (tied to the authenticated user) rather than in browser localStorage, so
+    the same data follows the account across devices and doesn't leak
+    between different users sharing one device/browser.
+    """
+    ACTIVITY_TYPES = [
+        ('resume', 'Resume'),
+        ('interview', 'Interview'),
+        ('chatbot', 'Chatbot'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="activities")
+    activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)
+    description = models.CharField(max_length=255)
+    score = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "User Activities"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.activity_type}: {self.description} - {self.user.username}"
+
 class ChatMessage(models.Model):
     """Model to store chat messages for the interview preparation chatbot"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_messages")

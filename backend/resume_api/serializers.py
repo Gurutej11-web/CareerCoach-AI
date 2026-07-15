@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Resume, JobDescription, ResumeAnalysis, MockInterview, ChatMessage
+from .models import Resume, JobDescription, ResumeAnalysis, MockInterview, ChatMessage, UserActivity
 
 class ResumeSerializer(serializers.ModelSerializer):
     """Serializer for Resume model"""
@@ -77,4 +77,11 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
         fields = ['id', 'user', 'message', 'is_user', 'timestamp', 'session_id']
-        read_only_fields = ['id', 'timestamp'] 
+        read_only_fields = ['id', 'timestamp']
+
+class UserActivitySerializer(serializers.ModelSerializer):
+    """Serializer for the per-account dashboard activity log"""
+    class Meta:
+        model = UserActivity
+        fields = ['id', 'activity_type', 'description', 'score', 'created_at']
+        read_only_fields = ['id', 'created_at'] 
