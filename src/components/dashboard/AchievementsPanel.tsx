@@ -6,6 +6,8 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
 import StarIcon from '@mui/icons-material/Star';
+import NightsStayIcon from '@mui/icons-material/NightsStay';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import { useRecentActivity, Activity } from '../../contexts/RecentActivityContext';
 
 interface Badge {
@@ -49,7 +51,12 @@ const AchievementsPanel: React.FC = () => {
     const interview = activities.filter((a) => a.type === 'interview').length;
     const chatbot = activities.filter((a) => a.type === 'chatbot').length;
     const highScore = activities.some((a) => typeof a.score === 'number' && a.score >= 90);
-    return { resume, interview, chatbot, highScore };
+    const perfectScore = activities.some((a) => a.score === 100);
+    const nightOwl = activities.some((a) => {
+      const hour = new Date(a.timestamp).getHours();
+      return hour >= 22 || hour < 5;
+    });
+    return { resume, interview, chatbot, highScore, perfectScore, nightOwl };
   }, [activities]);
 
   const badges: Badge[] = [
@@ -94,6 +101,27 @@ const AchievementsPanel: React.FC = () => {
       description: 'Try resume, interview, and chatbot features',
       icon: <EmojiEventsIcon />,
       unlocked: counts.resume >= 1 && counts.interview >= 1 && counts.chatbot >= 1,
+    },
+    {
+      id: 'night-owl',
+      label: 'Night Owl',
+      description: 'Use CareerCoach AI between 10pm and 5am',
+      icon: <NightsStayIcon />,
+      unlocked: counts.nightOwl,
+    },
+    {
+      id: 'perfectionist',
+      label: 'Perfectionist',
+      description: 'Score a perfect 100',
+      icon: <WorkspacePremiumIcon />,
+      unlocked: counts.perfectScore,
+    },
+    {
+      id: 'streak-7',
+      label: '7-Day Streak',
+      description: 'Use CareerCoach AI 7 days in a row',
+      icon: <LocalFireDepartmentIcon />,
+      unlocked: streak >= 7,
     },
   ];
 

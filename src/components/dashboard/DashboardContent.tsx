@@ -9,6 +9,8 @@ import RecentActivity from './RecentActivity';
 import StatsOverview from './StatsOverview';
 import ScoreProgressChart from './ScoreProgressChart';
 import AchievementsPanel from './AchievementsPanel';
+import ActivityHeatmap from './ActivityHeatmap';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 const quickAccessItems = [
   {
@@ -42,14 +44,15 @@ const quickAccessItems = [
 
 const DashboardContent: React.FC = () => {
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
 
   const filteredQuickAccess = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return quickAccessItems;
     return quickAccessItems.filter(
       (item) => item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [debouncedSearch]);
 
   return (
     <Box component="main" sx={{ flexGrow: 1, py: 4, px: { xs: 2, md: 4 } }}>
@@ -100,7 +103,9 @@ const DashboardContent: React.FC = () => {
 
         <AchievementsPanel />
 
-        <RecentActivity filter={search} />
+        <ActivityHeatmap />
+
+        <RecentActivity filter={debouncedSearch} />
       </Container>
     </Box>
   );

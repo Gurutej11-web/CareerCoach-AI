@@ -54,6 +54,28 @@ const ScoreProgressChart: React.FC = () => {
           </Typography>
         </Box>
       ) : (
+        <>
+          <Box sx={{ display: 'flex', gap: 3, mb: 2, flexWrap: 'wrap' }}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">First score</Typography>
+              <Typography variant="h6" fontWeight={700}>{points[0].score}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Latest score</Typography>
+              <Typography variant="h6" fontWeight={700}>{points[points.length - 1].score}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Change</Typography>
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                color={(points[points.length - 1].score as number) - (points[0].score as number) >= 0 ? 'success.main' : 'error.main'}
+              >
+                {(points[points.length - 1].score as number) - (points[0].score as number) >= 0 ? '+' : ''}
+                {(points[points.length - 1].score as number) - (points[0].score as number)}
+              </Typography>
+            </Box>
+          </Box>
         <Box sx={{ width: '100%', overflowX: 'auto' }}>
           <svg
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -77,6 +99,7 @@ const ScoreProgressChart: React.FC = () => {
             ))}
           </svg>
         </Box>
+        </>
       )}
     </Paper>
   );
