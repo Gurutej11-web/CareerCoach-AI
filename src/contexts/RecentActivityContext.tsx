@@ -62,6 +62,13 @@ export const RecentActivityProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   }, [isAuthenticated, loadFromBackend]);
 
+  // One-time cleanup: earlier versions of this app stored activity in
+  // localStorage under this key. Remove any leftover copy so it can't be
+  // mistaken for current data or leak between accounts on shared devices.
+  useEffect(() => {
+    localStorage.removeItem('careercoach-recent-activity');
+  }, []);
+
   const addActivity = (type: ActivityType, description: string, score?: number) => {
     if (!isAuthenticated) return;
 
