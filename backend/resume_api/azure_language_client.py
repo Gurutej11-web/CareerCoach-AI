@@ -4,8 +4,6 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.textanalytics import TextAnalyticsClient
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from transformers import AutoTokenizer, AutoModel
-import torch
 import re
 
 # Load environment variables
@@ -15,14 +13,28 @@ load_dotenv()
 key = os.getenv("AZURE_LANGUAGE_KEY")
 endpoint = os.getenv("AZURE_LANGUAGE_ENDPOINT")
 
-# Load BERT model for text similarity
-try:
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    model = AutoModel.from_pretrained("bert-base-uncased")
-except Exception as e:
-    print(f"Error loading BERT model: {str(e)}")
-    tokenizer = None
-    model = None
+# BERT is loaded lazily (see _get_bert below) so Django doesn't pay the
+# import/weight-loading cost — and risk OOM on memory-constrained hosts —
+# at process startup, before any request has actually asked for it.
+_bert_tokenizer = None
+_bert_model = None
+_bert_load_attempted = False
+
+
+def _get_bert():
+    """Load the BERT tokenizer/model on first use, then cache them."""
+    global _bert_tokenizer, _bert_model, _bert_load_attempted
+    if not _bert_load_attempted:
+        _bert_load_attempted = True
+        try:
+            from transformers import AutoTokenizer, AutoModel
+            _bert_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+            _bert_model = AutoModel.from_pretrained("bert-base-uncased")
+        except Exception as e:
+            print(f"Error loading BERT model: {str(e)}")
+            _bert_tokenizer = None
+            _bert_model = None
+    return _bert_tokenizer, _bert_model
 
 # Initialize Azure Language Text Analytics client
 def get_text_analytics_client():
@@ -139,18 +151,21 @@ def get_bert_embedding(text):
     Returns:
         numpy.ndarray: BERT embedding vector
     """
+    tokenizer, model = _get_bert()
     if tokenizer is None or model is None:
         # Fallback to simple character-based embedding if BERT is not available
         return np.array([ord(c) for c in text[:20].ljust(20)])
-    
+
     try:
+        import torch
+
         # Tokenize and prepare for BERT
         inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=128)
-        
+
         # Get BERT embeddings
         with torch.no_grad():
             outputs = model(**inputs)
-        
+
         # Use the [CLS] token embedding as the sentence embedding
         embeddings = outputs.last_hidden_state[:, 0, :].numpy()
         return embeddings[0]  # Return the first (and only) embedding
