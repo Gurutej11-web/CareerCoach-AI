@@ -500,6 +500,14 @@ AI_TOOLS = {
         "description or role they're applying to, write a concise, tailored cover letter (3-4 short "
         "paragraphs) that connects their experience to the role without simply repeating the resume."
     ),
+    'ats_checker': (
+        'ATS Compatibility Checker',
+        "You are an ATS (Applicant Tracking System) compatibility expert. Given resume text, check for "
+        "formatting and content issues that commonly break ATS parsing: tables/columns, headers/footers, "
+        "images or icons instead of text, non-standard section headings, unusual fonts/symbols, and "
+        "missing standard sections (Experience, Education, Skills). List each issue found as a bullet, "
+        "then give an overall ATS-friendliness rating of Good, Fair, or Poor with a one-line reason."
+    ),
 }
 
 

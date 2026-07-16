@@ -14,6 +14,7 @@ import MailIcon from '@mui/icons-material/Mail';
 import QuizIcon from '@mui/icons-material/Quiz';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import ArticleIcon from '@mui/icons-material/Article';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PageHeader from '../components/common/PageHeader';
 import { generateWithAITool, AIToolId } from '../services/aiToolsService';
@@ -105,6 +106,13 @@ const TOOLS: ToolConfig[] = [
     description: 'A tailored cover letter draft.',
     icon: <ArticleIcon />,
     placeholder: 'e.g. My background: 3 years in marketing, led 2 product launches. Applying for: Marketing Manager at Acme Corp...',
+  },
+  {
+    id: 'ats_checker',
+    title: 'ATS Compatibility Checker',
+    description: 'Spot formatting issues that break resume parsers.',
+    icon: <FactCheckIcon />,
+    placeholder: 'Paste your resume text here...',
   },
 ];
 

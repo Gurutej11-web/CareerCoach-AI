@@ -13,7 +13,8 @@ export type AIToolId =
   | 'thank_you_note'
   | 'interview_predictor'
   | 'bullet_rewriter'
-  | 'cover_letter';
+  | 'cover_letter'
+  | 'ats_checker';
 
 export interface AIToolResponse {
   tool: string;
