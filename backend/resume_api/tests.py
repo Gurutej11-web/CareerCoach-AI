@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 
-from .models import UserActivity
+from .models import UserActivity, ChatMessage
 
 
 class HealthCheckTests(APITestCase):
@@ -64,3 +64,31 @@ class UploadValidationTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('unsupported file type', response.json()['error'])
+
+
+class ChatSessionsTests(APITestCase):
+    """Regression test: get_chat_sessions returned each session once per
+    message instead of once per session, because ChatMessage's default
+    ordering (Meta.ordering = ['timestamp']) gets folded into the SELECT
+    DISTINCT, making DISTINCT effectively operate on (session_id, timestamp)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='chatuser', password='TestPass123!')
+        self.client.force_authenticate(user=self.user)
+        ChatMessage.objects.create(user=self.user, message='Hello', is_user=True, session_id='session-1')
+        ChatMessage.objects.create(user=self.user, message='Hi there', is_user=False, session_id='session-1')
+        ChatMessage.objects.create(user=self.user, message='Another question', is_user=True, session_id='session-1')
+
+    def test_multi_message_session_is_listed_once(self):
+        response = self.client.get('/api/resume/interview/sessions/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sessions = response.json()
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(sessions[0]['session_id'], 'session-1')
+
+    def test_multiple_sessions_are_each_listed_once(self):
+        ChatMessage.objects.create(user=self.user, message='Different topic', is_user=True, session_id='session-2')
+        response = self.client.get('/api/resume/interview/sessions/')
+        session_ids = {s['session_id'] for s in response.json()}
+        self.assertEqual(session_ids, {'session-1', 'session-2'})
+        self.assertEqual(len(response.json()), 2)

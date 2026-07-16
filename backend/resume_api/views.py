@@ -307,10 +307,14 @@ def get_chat_sessions(request):
     """
     Get a list of all chat sessions for the authenticated user.
     """
-    # Get all unique session IDs for this user
+    # Get all unique session IDs for this user. ChatMessage's default
+    # ordering (Meta.ordering = ['timestamp']) gets pulled into the SELECT
+    # for DISTINCT to be well-defined, which silently turns this into
+    # "distinct (session_id, timestamp)" and returns the same session once
+    # per message. order_by() clears that default ordering first.
     sessions = ChatMessage.objects.filter(
         user=request.user
-    ).values('session_id').distinct()
+    ).order_by().values('session_id').distinct()
     
     session_data = []
     for session in sessions:

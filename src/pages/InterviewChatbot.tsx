@@ -16,9 +16,12 @@ import {
   Send as SendIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
+  Add as AddIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
-import { sendChatMessage, getChatbotFAQTopics } from '../services/resumeService';
+import { sendChatMessage, getChatbotFAQTopics, getChatSessions, getChatHistory, ChatSession } from '../services/resumeService';
 import { useRecentActivity } from '../contexts/RecentActivityContext';
+import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/common/PageHeader';
 
 // Interface for chat messages
@@ -51,8 +54,63 @@ const InterviewChatbot: React.FC = () => {
     "Questions to ask the interviewer",
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
 
   const { addActivity } = useRecentActivity();
+  const { isAuthenticated } = useAuth();
+
+  const loadSessions = async () => {
+    if (!isAuthenticated) return;
+    setSessionsLoading(true);
+    try {
+      const data = await getChatSessions();
+      setSessions(data);
+    } catch (error) {
+      // Session history is a convenience feature — a failed fetch just
+      // means the list stays empty, the chat itself still works.
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  // Load past sessions on mount so returning users can pick up an old conversation.
+  useEffect(() => {
+    loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  const handleNewChat = () => {
+    setSessionId('');
+    setMessages([
+      {
+        id: 1,
+        text: "Hi there! I'm your Interview Preparation Assistant. How can I help you prepare for your interviews today?",
+        sender: 'bot',
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
+  const handleSelectSession = async (session: ChatSession) => {
+    setIsLoading(true);
+    try {
+      const history = await getChatHistory(session.session_id);
+      setSessionId(session.session_id);
+      setMessages(
+        history.map((m) => ({
+          id: m.id,
+          text: m.message,
+          sender: m.is_user ? 'user' : 'bot',
+          timestamp: new Date(m.timestamp),
+        }))
+      );
+    } catch (error) {
+      // Leave the current conversation untouched if the history fails to load.
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Fetch FAQ topics on component mount
   useEffect(() => {
@@ -122,6 +180,7 @@ const InterviewChatbot: React.FC = () => {
       };
       
       setMessages(prev => [...prev, botMessage]);
+      loadSessions();
     } catch (error) {
       console.error('Error getting response from chatbot:', error);
       
@@ -148,10 +207,17 @@ const InterviewChatbot: React.FC = () => {
   return (
     <Box sx={{ flexGrow: 1, py: 4, px: { xs: 2, md: 4 } }}>
       <Container maxWidth="xl">
-        <PageHeader
-          title="Interview Preparation Chatbot"
-          subtitle="Get answers to common interview questions and personalized advice"
-        />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+          <PageHeader
+            title="Interview Preparation Chatbot"
+            subtitle="Get answers to common interview questions and personalized advice"
+          />
+          {isAuthenticated && (
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={handleNewChat} sx={{ mt: 1 }}>
+              New chat
+            </Button>
+          )}
+        </Box>
 
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
@@ -350,7 +416,47 @@ const InterviewChatbot: React.FC = () => {
                   ))}
                 </Box>
               </Paper>
-              
+
+              {isAuthenticated && (
+                <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <HistoryIcon color="primary" fontSize="small" />
+                    <Typography variant="h6" component="h2">
+                      Past Conversations
+                    </Typography>
+                  </Box>
+                  {sessionsLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                      <CircularProgress size={20} />
+                    </Box>
+                  ) : sessions.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Your past conversations will appear here.
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 260, overflowY: 'auto' }}>
+                      {sessions.map((session) => (
+                        <Button
+                          key={session.session_id}
+                          variant={session.session_id === sessionId ? 'contained' : 'text'}
+                          onClick={() => handleSelectSession(session)}
+                          sx={{ justifyContent: 'flex-start', textAlign: 'left', textTransform: 'none' }}
+                          disabled={isLoading}
+                        >
+                          <Box sx={{ overflow: 'hidden' }}>
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 220 }}>
+                              {session.title}
+                            </Typography>
+                            <Typography variant="caption" color={session.session_id === sessionId ? 'inherit' : 'text.secondary'}>
+                              {new Date(session.last_updated).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </Typography>
+                          </Box>
+                        </Button>
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
+              )}
             </Box>
           </Grid>
         </Grid>
