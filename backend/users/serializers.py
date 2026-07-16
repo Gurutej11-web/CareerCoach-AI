@@ -14,8 +14,9 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = [
             'bio', 'location', 'birth_date', 'profile_picture', 'job_title', 'company', 'skills',
-            'phone_number', 'goal_target_score', 'goal_target_interviews',
+            'phone_number', 'goal_target_score', 'goal_target_interviews', 'email_verified',
         ]
+        read_only_fields = ['email_verified']
 
 class RegisterSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)

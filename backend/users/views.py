@@ -52,21 +52,45 @@ def profile_view(request):
     return render(request, 'users/profile.html', {'form': form})
 
 # API Views
+def send_verification_email(user):
+    """
+    Email a verification link (console-logged locally since no SMTP provider
+    is configured — see the password-reset flow for the same setup). This is
+    informational only: an unverified account can still log in and use every
+    feature, it just shows a dismissible "verify your email" banner.
+    """
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    verify_url = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
+
+    send_mail(
+        subject='Verify your CareerCoach AI email',
+        message=(
+            f"Hi {user.username},\n\n"
+            f"Click the link below to verify your email address:\n{verify_url}\n\n"
+            "If you didn't create this account, you can safely ignore this email."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=True,
+    )
+
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             refresh = RefreshToken.for_user(user)
-            
+            send_verification_email(user)
+
             return Response({
                 'user': UserSerializer(user).data,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             }, status=status.HTTP_201_CREATED)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT'])
@@ -233,3 +257,37 @@ def delete_account(request):
 
     request.user.delete()
     return Response({'detail': 'Your account has been permanently deleted.'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    """Confirm the uid/token pair from a verification email and mark the account verified."""
+    uidb64 = request.data.get('uid', '')
+    token = request.data.get('token', '')
+
+    if not uidb64 or not token:
+        return Response({'error': 'uid and token are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+        return Response({'error': 'This verification link is invalid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not default_token_generator.check_token(user, token):
+        return Response({'error': 'This verification link is invalid or has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.profile.email_verified = True
+    user.profile.save()
+
+    return Response({'detail': 'Your email has been verified.'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def resend_verification_email(request):
+    """Let a logged-in user with an unverified email request a fresh link."""
+    if request.user.profile.email_verified:
+        return Response({'detail': 'Your email is already verified.'}, status=status.HTTP_200_OK)
+
+    send_verification_email(request.user)
+    return Response({'detail': 'Verification email sent.'}, status=status.HTTP_200_OK)

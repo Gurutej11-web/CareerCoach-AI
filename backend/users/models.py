@@ -26,6 +26,9 @@ class Profile(models.Model):
     # across devices like everything else on the dashboard.
     goal_target_score = models.IntegerField(null=True, blank=True)
     goal_target_interviews = models.IntegerField(null=True, blank=True)
+    # Verification is informational only (a dismissible banner) — it does not
+    # gate login, so it can't lock anyone out of an account they already have.
+    email_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 

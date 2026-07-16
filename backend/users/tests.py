@@ -148,3 +148,60 @@ class ProfileGoalsTests(APITestCase):
         refetched = self.client.get('/users/api/profile/')
         self.assertEqual(refetched.json()['profile']['goal_target_score'], 95)
         self.assertEqual(refetched.json()['profile']['goal_target_interviews'], 10)
+
+
+class EmailVerificationTests(APITestCase):
+    def test_registration_sends_a_verification_email(self):
+        payload = {
+            'username': 'verifyme',
+            'email': 'verifyme@example.com',
+            'password': 'StrongPass123!',
+            'password_confirm': 'StrongPass123!',
+        }
+        response = self.client.post('/users/api/register/', payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('verify-email', mail.outbox[0].body)
+
+        user = User.objects.get(username='verifyme')
+        self.assertFalse(user.profile.email_verified)
+
+    def test_verify_email_marks_profile_verified(self):
+        user = User.objects.create_user(username='toverify', password='TestPass123!')
+        self.assertFalse(user.profile.email_verified)
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        response = self.client.post('/users/api/verify-email/', {'uid': uid, 'token': token}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user.profile.refresh_from_db()
+        self.assertTrue(user.profile.email_verified)
+
+    def test_verify_email_rejects_bad_token(self):
+        user = User.objects.create_user(username='badtoken', password='TestPass123!')
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        response = self.client.post('/users/api/verify-email/', {'uid': uid, 'token': 'garbage'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        user.profile.refresh_from_db()
+        self.assertFalse(user.profile.email_verified)
+
+    def test_resend_requires_authentication(self):
+        response = self.client.post('/users/api/resend-verification/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_resend_sends_another_email_when_unverified(self):
+        user = User.objects.create_user(username='resenduser', email='resenduser@example.com', password='TestPass123!')
+        self.client.force_authenticate(user=user)
+        response = self.client.post('/users/api/resend-verification/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_resend_is_a_noop_once_verified(self):
+        user = User.objects.create_user(username='alreadyverified', password='TestPass123!')
+        user.profile.email_verified = True
+        user.profile.save()
+        self.client.force_authenticate(user=user)
+        response = self.client.post('/users/api/resend-verification/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 0)

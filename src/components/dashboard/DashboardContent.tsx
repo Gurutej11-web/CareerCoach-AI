@@ -13,6 +13,7 @@ import ScoreProgressChart from './ScoreProgressChart';
 import AchievementsPanel from './AchievementsPanel';
 import ActivityHeatmap from './ActivityHeatmap';
 import GoalsCard from './GoalsCard';
+import EmailVerificationBanner from './EmailVerificationBanner';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
 import { generateProgressReportPdf } from '../../utils/pdfReport';
@@ -72,6 +73,7 @@ const DashboardContent: React.FC = () => {
   return (
     <Box component="main" sx={{ flexGrow: 1, py: 4, px: { xs: 2, md: 4 } }}>
       <Container maxWidth="lg">
+        <EmailVerificationBanner />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" sx={{ fontSize: '35px', mb: 0 }}>
             Dashboard
