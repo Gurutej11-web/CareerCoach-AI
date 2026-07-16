@@ -215,3 +215,38 @@ export function generateInterviewReportPdf(
 
   doc.save(fileName);
 }
+
+export interface ChatTranscriptMessage {
+  sender: 'user' | 'bot';
+  text: string;
+  timestamp: Date;
+}
+
+export function generateChatStudyGuidePdf(
+  messages: ChatTranscriptMessage[],
+  fileName = 'careercoach-chat-study-guide.pdf'
+) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  let y = MARGIN;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(79, 70, 229);
+  doc.text('CareerCoach AI — Interview Prep Study Guide', MARGIN, y);
+  y += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, MARGIN, y);
+  y += 10;
+
+  for (const message of messages) {
+    const label = message.sender === 'user' ? 'You asked:' : 'Assistant:';
+    y = addSectionTitle(doc, y, label);
+    y = addBulletList(doc, y, [message.text]);
+    y += 4;
+  }
+
+  doc.save(fileName);
+}

@@ -23,9 +23,11 @@ import {
   StarBorder as StarBorderIcon,
   Star as StarIcon,
   Delete as DeleteIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { sendChatMessage, getChatbotFAQTopics, getChatSessions, getChatHistory, ChatSession } from '../services/resumeService';
 import { fetchBookmarks, createBookmark, deleteBookmark, BookmarkedAnswer } from '../services/bookmarkService';
+import { generateChatStudyGuidePdf } from '../utils/pdfReport';
 import { useRecentActivity } from '../contexts/RecentActivityContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -137,6 +139,11 @@ const InterviewChatbot: React.FC = () => {
         timestamp: new Date(),
       },
     ]);
+  };
+
+  const handleExportConversation = () => {
+    generateChatStudyGuidePdf(messages);
+    notify('Study guide downloaded', 'success');
   };
 
   const handleSelectSession = async (session: ChatSession) => {
@@ -259,11 +266,18 @@ const InterviewChatbot: React.FC = () => {
             title="Interview Preparation Chatbot"
             subtitle="Get answers to common interview questions and personalized advice"
           />
-          {isAuthenticated && (
-            <Button variant="outlined" startIcon={<AddIcon />} onClick={handleNewChat} sx={{ mt: 1 }}>
-              New chat
-            </Button>
-          )}
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            {messages.length > 1 && (
+              <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleExportConversation}>
+                Export as PDF
+              </Button>
+            )}
+            {isAuthenticated && (
+              <Button variant="outlined" startIcon={<AddIcon />} onClick={handleNewChat}>
+                New chat
+              </Button>
+            )}
+          </Box>
         </Box>
 
         <Grid container spacing={4}>
