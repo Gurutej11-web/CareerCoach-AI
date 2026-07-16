@@ -11,6 +11,8 @@ import {
   Avatar,
   Grid,
   CircularProgress,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -18,10 +20,15 @@ import {
   Person as PersonIcon,
   Add as AddIcon,
   History as HistoryIcon,
+  StarBorder as StarBorderIcon,
+  Star as StarIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { sendChatMessage, getChatbotFAQTopics, getChatSessions, getChatHistory, ChatSession } from '../services/resumeService';
+import { fetchBookmarks, createBookmark, deleteBookmark, BookmarkedAnswer } from '../services/bookmarkService';
 import { useRecentActivity } from '../contexts/RecentActivityContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import PageHeader from '../components/common/PageHeader';
 
 // Interface for chat messages
@@ -56,9 +63,49 @@ const InterviewChatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [bookmarks, setBookmarks] = useState<BookmarkedAnswer[]>([]);
 
   const { addActivity } = useRecentActivity();
   const { isAuthenticated } = useAuth();
+  const { notify } = useNotification();
+
+  const loadBookmarks = async () => {
+    if (!isAuthenticated) return;
+    const data = await fetchBookmarks();
+    setBookmarks(data);
+  };
+
+  useEffect(() => {
+    loadBookmarks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  const isBookmarked = (answer: string) => bookmarks.some((b) => b.answer === answer);
+
+  const handleToggleBookmark = async (question: string, answer: string) => {
+    const existing = bookmarks.find((b) => b.answer === answer);
+    if (existing) {
+      const ok = await deleteBookmark(existing.id);
+      if (ok) {
+        setBookmarks((prev) => prev.filter((b) => b.id !== existing.id));
+        notify('Bookmark removed', 'info');
+      }
+    } else {
+      const created = await createBookmark(question, answer);
+      if (created) {
+        setBookmarks((prev) => [created, ...prev]);
+        notify('Answer bookmarked', 'success');
+      }
+    }
+  };
+
+  const handleRemoveBookmark = async (id: number) => {
+    const ok = await deleteBookmark(id);
+    if (ok) {
+      setBookmarks((prev) => prev.filter((b) => b.id !== id));
+      notify('Bookmark removed', 'info');
+    }
+  };
 
   const loadSessions = async () => {
     if (!isAuthenticated) return;
@@ -243,22 +290,22 @@ const InterviewChatbot: React.FC = () => {
                 }}
               >
                 <List>
-                  {messages.map((message) => (
-                    <ListItem 
-                      key={message.id} 
-                      sx={{ 
-                        display: 'flex', 
+                  {messages.map((message, index) => (
+                    <ListItem
+                      key={message.id}
+                      sx={{
+                        display: 'flex',
                         justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
                         mb: 2,
                       }}
                     >
                       <Box sx={{ display: 'flex', maxWidth: '80%', alignItems: 'flex-start' }}>
                         {message.sender === 'bot' && (
-                          <Avatar 
-                            sx={{ 
-                              bgcolor: 'primary.main', 
+                          <Avatar
+                            sx={{
+                              bgcolor: 'primary.main',
                               mr: 1,
-                              width: 36, 
+                              width: 36,
                               height: 36,
                               mt: 0.5
                             }}
@@ -266,24 +313,38 @@ const InterviewChatbot: React.FC = () => {
                             <BotIcon fontSize="small" />
                           </Avatar>
                         )}
-                        
-                        <Paper 
-                          variant="outlined" 
-                          sx={{ 
-                            p: 2, 
-                            borderRadius: 2, 
+
+                        <Paper
+                          variant="outlined"
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
                             backgroundColor: message.sender === 'user' ? 'primary.light' : 'white',
                             color: message.sender === 'user' ? 'white' : 'text.primary',
                             ml: message.sender === 'user' ? 1 : 0,
                             mr: message.sender === 'bot' ? 1 : 0,
+                            position: 'relative',
                           }}
                         >
-                          <Typography variant="body1">{message.text}</Typography>
+                          <Typography variant="body1" sx={{ pr: message.sender === 'bot' && isAuthenticated ? 3 : 0 }}>
+                            {message.text}
+                          </Typography>
                           <Typography variant="caption" color={message.sender === 'user' ? 'rgba(255,255,255,0.7)' : 'text.secondary'} sx={{ display: 'block', mt: 1, textAlign: 'right' }}>
                             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </Typography>
+                          {message.sender === 'bot' && isAuthenticated && (
+                            <Tooltip title={isBookmarked(message.text) ? 'Remove bookmark' : 'Bookmark this answer'}>
+                              <IconButton
+                                size="small"
+                                sx={{ position: 'absolute', top: 4, right: 4 }}
+                                onClick={() => handleToggleBookmark(messages[index - 1]?.text || '', message.text)}
+                              >
+                                {isBookmarked(message.text) ? <StarIcon fontSize="small" color="warning" /> : <StarBorderIcon fontSize="small" />}
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Paper>
-                        
+
                         {message.sender === 'user' && (
                           <Avatar 
                             sx={{ 
@@ -452,6 +513,40 @@ const InterviewChatbot: React.FC = () => {
                             </Typography>
                           </Box>
                         </Button>
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
+              )}
+
+              {isAuthenticated && (
+                <Paper elevation={3} sx={{ p: 3, mt: 3, borderRadius: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <StarIcon color="warning" fontSize="small" />
+                    <Typography variant="h6" component="h2">
+                      Bookmarked Answers
+                    </Typography>
+                  </Box>
+                  {bookmarks.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Tap the star on any answer to save it here.
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, maxHeight: 300, overflowY: 'auto' }}>
+                      {bookmarks.map((bookmark) => (
+                        <Box key={bookmark.id} sx={{ p: 1.5, borderRadius: 1, bgcolor: 'action.hover', position: 'relative' }}>
+                          <IconButton
+                            size="small"
+                            sx={{ position: 'absolute', top: 4, right: 4 }}
+                            onClick={() => handleRemoveBookmark(bookmark.id)}
+                            aria-label="Remove bookmark"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                          <Typography variant="body2" sx={{ pr: 3, whiteSpace: 'pre-wrap' }}>
+                            {bookmark.answer}
+                          </Typography>
+                        </Box>
                       ))}
                     </Box>
                   )}

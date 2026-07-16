@@ -186,3 +186,45 @@ class ReadabilityTests(APITestCase):
     def test_empty_text_returns_none_score(self):
         result = self.analyzer._calculate_readability('')
         self.assertIsNone(result['score'])
+
+
+class BookmarkedAnswerTests(APITestCase):
+    def setUp(self):
+        self.user_a = User.objects.create_user(username='bookmarker_a', password='TestPass123!')
+        self.user_b = User.objects.create_user(username='bookmarker_b', password='TestPass123!')
+
+    def test_requires_authentication(self):
+        response = self.client.get('/api/resume/bookmarks/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_and_list_bookmark(self):
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.post(
+            '/api/resume/bookmarks/',
+            {'question': 'Tell me about yourself', 'answer': 'Focus on your professional background...'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        listed = self.client.get('/api/resume/bookmarks/')
+        self.assertEqual(len(listed.json()), 1)
+        self.assertEqual(listed.json()[0]['answer'], 'Focus on your professional background...')
+
+    def test_users_only_see_their_own_bookmarks(self):
+        from .models import BookmarkedAnswer
+        BookmarkedAnswer.objects.create(user=self.user_a, question='Q1', answer='A1')
+        BookmarkedAnswer.objects.create(user=self.user_b, question='Q2', answer='A2')
+
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.get('/api/resume/bookmarks/')
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]['answer'], 'A1')
+
+    def test_cannot_delete_another_users_bookmark(self):
+        from .models import BookmarkedAnswer
+        other_bookmark = BookmarkedAnswer.objects.create(user=self.user_b, question='Q2', answer='A2')
+
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.delete(f'/api/resume/bookmarks/{other_bookmark.id}/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(BookmarkedAnswer.objects.filter(id=other_bookmark.id).exists())

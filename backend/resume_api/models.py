@@ -108,6 +108,23 @@ class ChatMessage(models.Model):
     
     class Meta:
         ordering = ['timestamp']
-    
+
     def __str__(self):
         return f"{'User' if self.is_user else 'Bot'}: {self.message[:50]}..."
+
+class BookmarkedAnswer(models.Model):
+    """
+    A chatbot answer the user starred for quick reference later. Stores the
+    answer text directly (not a FK to ChatMessage) so a bookmark survives
+    independently of the original conversation's lifecycle.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookmarked_answers")
+    question = models.TextField(blank=True)
+    answer = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Bookmark: {self.answer[:50]}... - {self.user.username}"

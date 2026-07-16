@@ -30,7 +30,7 @@ def _validate_upload(file_obj, allowed_extensions, label):
         return f"{label} has an unsupported file type '.{ext}'. Allowed types: {', '.join(sorted(allowed_extensions))}."
     return None
 
-from .models import Resume, JobDescription, ResumeAnalysis, ChatMessage, MockInterview, UserActivity
+from .models import Resume, JobDescription, ResumeAnalysis, ChatMessage, MockInterview, UserActivity, BookmarkedAnswer
 from .serializers import (
     ResumeSerializer,
     JobDescriptionSerializer,
@@ -40,7 +40,8 @@ from .serializers import (
     InterviewAnalysisResultSerializer,
     InterviewFeedbackSerializer,
     ChatMessageSerializer,
-    UserActivitySerializer
+    UserActivitySerializer,
+    BookmarkedAnswerSerializer
 )
 from .resume_analyzer import ResumeAnalyzer
 from .interview_analyzer import InterviewAnalyzer
@@ -542,3 +543,16 @@ def ai_tools_generate(request):
         )
 
 ai_tools_generate.cls.throttle_scope = 'ai_tools'
+
+class BookmarkedAnswerViewSet(viewsets.ModelViewSet):
+    """Chatbot answers the user starred for quick reference later."""
+    serializer_class = BookmarkedAnswerSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return BookmarkedAnswer.objects.filter(user=user).order_by('-created_at')
+        return BookmarkedAnswer.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

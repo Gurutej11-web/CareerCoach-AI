@@ -9,6 +9,7 @@ router.register(r'job-descriptions', views.JobDescriptionViewSet, basename='jobd
 router.register(r'analyses', views.ResumeAnalysisViewSet, basename='resumeanalysis')
 router.register(r'mock-interviews', views.MockInterviewViewSet, basename='mockinterview')
 router.register(r'activity', views.UserActivityViewSet, basename='useractivity')
+router.register(r'bookmarks', views.BookmarkedAnswerViewSet, basename='bookmarkedanswer')
 
 # The API URLs are determined automatically by the router
 urlpatterns = [
