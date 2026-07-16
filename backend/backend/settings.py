@@ -184,6 +184,10 @@ REST_FRAMEWORK = {
         'ai_tools': '20/minute',
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Adds a consistent `error: {message, status_code}` object to every
+    # DRF-raised error response, without touching the existing `detail` /
+    # field-error shape the frontend already reads.
+    'EXCEPTION_HANDLER': 'backend.exception_handlers.api_exception_handler',
 }
 
 SPECTACULAR_SETTINGS = {
