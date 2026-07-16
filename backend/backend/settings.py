@@ -265,6 +265,13 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 _static_dir = os.path.join(BASE_DIR, 'static')
 STATICFILES_DIRS = [_static_dir] if os.path.isdir(_static_dir) else []
 STORAGES = {
+    # Django 4.2+ requires a "default" entry (used for FileField/ImageField,
+    # e.g. Profile.profile_picture) once STORAGES is defined at all — without
+    # it, any serializer touching an uploaded file's .url crashes with
+    # InvalidStorageError instead of falling back to FileSystemStorage.
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },

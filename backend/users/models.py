@@ -21,6 +21,11 @@ class Profile(models.Model):
     company = models.CharField(max_length=100, blank=True)
     skills = models.TextField(blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
+    # Optional, user-set goals shown as progress bars on the dashboard.
+    # Stored on the account (not the browser) so they follow the user
+    # across devices like everything else on the dashboard.
+    goal_target_score = models.IntegerField(null=True, blank=True)
+    goal_target_interviews = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Box, Container, Grid, Typography, TextField, InputAdornment } from '@mui/material';
+import { Box, Container, Grid, Typography, TextField, InputAdornment, Button } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
@@ -10,7 +11,10 @@ import StatsOverview from './StatsOverview';
 import ScoreProgressChart from './ScoreProgressChart';
 import AchievementsPanel from './AchievementsPanel';
 import ActivityHeatmap from './ActivityHeatmap';
+import GoalsCard from './GoalsCard';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useRecentActivity } from '../../contexts/RecentActivityContext';
+import { generateProgressReportPdf } from '../../utils/pdfReport';
 
 const quickAccessItems = [
   {
@@ -45,6 +49,7 @@ const quickAccessItems = [
 const DashboardContent: React.FC = () => {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 250);
+  const { activities } = useRecentActivity();
 
   const filteredQuickAccess = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -61,20 +66,29 @@ const DashboardContent: React.FC = () => {
           <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" sx={{ fontSize: '35px', mb: 0 }}>
             Dashboard
           </Typography>
-          <TextField
-            size="small"
-            placeholder="Search dashboard..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 260 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" color="action" />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <TextField
+              size="small"
+              placeholder="Search dashboard..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              sx={{ minWidth: 260 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={() => generateProgressReportPdf(activities)}
+            >
+              Progress report
+            </Button>
+          </Box>
         </Box>
 
         <Box sx={{ mt: 2 }}>
@@ -100,6 +114,8 @@ const DashboardContent: React.FC = () => {
         )}
 
         <ScoreProgressChart />
+
+        <GoalsCard />
 
         <AchievementsPanel />
 

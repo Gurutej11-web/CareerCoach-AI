@@ -12,7 +12,10 @@ class UserSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
-        fields = ['bio', 'location', 'birth_date', 'profile_picture', 'job_title', 'company', 'skills', 'phone_number']
+        fields = [
+            'bio', 'location', 'birth_date', 'profile_picture', 'job_title', 'company', 'skills',
+            'phone_number', 'goal_target_score', 'goal_target_interviews',
+        ]
 
 class RegisterSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)

@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { ResumeAnalysisResult } from '../services/resumeService';
+import { Activity } from '../contexts/RecentActivityContext';
 
 const MARGIN = 15;
 const PAGE_WIDTH = 210;
@@ -82,6 +83,62 @@ export function generateResumeReportPdf(result: ResumeAnalysisResult, fileName =
     y = addSectionTitle(doc, y, 'Tone Analysis');
     y = addBulletList(doc, y, [`Overall sentiment: ${result.sentimentAnalysis.sentiment}`]);
   }
+
+  doc.save(fileName);
+}
+
+export function generateProgressReportPdf(activities: Activity[], fileName = 'careercoach-progress-report.pdf') {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  let y = MARGIN;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(79, 70, 229);
+  doc.text('CareerCoach AI — Progress Report', MARGIN, y);
+  y += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, MARGIN, y);
+  y += 10;
+
+  const resumeCount = activities.filter((a) => a.type === 'resume').length;
+  const interviewCount = activities.filter((a) => a.type === 'interview').length;
+  const chatbotCount = activities.filter((a) => a.type === 'chatbot').length;
+  const scored = activities.filter((a) => typeof a.score === 'number');
+  const avgScore = scored.length
+    ? Math.round(scored.reduce((sum, a) => sum + (a.score as number), 0) / scored.length)
+    : null;
+
+  y = addSectionTitle(doc, y, 'Summary');
+  y = addBulletList(doc, y, [
+    `Resumes analyzed: ${resumeCount}`,
+    `Mock interviews completed: ${interviewCount}`,
+    `Chatbot sessions: ${chatbotCount}`,
+    avgScore !== null ? `Average score: ${avgScore}` : 'Average score: not enough data yet',
+    `Total activities logged: ${activities.length}`,
+  ]);
+  y += 4;
+
+  if (scored.length >= 2) {
+    const sorted = [...scored].sort((a, b) => a.timestamp - b.timestamp);
+    const first = sorted[0].score as number;
+    const latest = sorted[sorted.length - 1].score as number;
+    y = addSectionTitle(doc, y, 'Score Trend');
+    y = addBulletList(doc, y, [
+      `First recorded score: ${first}`,
+      `Latest recorded score: ${latest}`,
+      `Change: ${latest - first >= 0 ? '+' : ''}${latest - first}`,
+    ]);
+    y += 4;
+  }
+
+  y = addSectionTitle(doc, y, 'Recent Activity');
+  const activityLines = activities
+    .slice(0, 25)
+    .map((a) => `[${a.date}] ${a.description}${typeof a.score === 'number' ? ` — score: ${a.score}` : ''}`);
+  addBulletList(doc, y, activityLines.length ? activityLines : ['No activity recorded yet.']);
 
   doc.save(fileName);
 }

@@ -120,3 +120,31 @@ class DeleteAccountTests(APITestCase):
         self.client.force_authenticate(user=None)
         response = self.client.post('/users/api/delete-account/', {'password': 'CorrectPass123!'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class ProfileGoalsTests(APITestCase):
+    """Regression test: GET /users/api/profile/ previously 500'd for every
+    user because settings.STORAGES defined "staticfiles" but no "default"
+    entry, and ProfileSerializer.profile_picture (an ImageField) crashes
+    resolving its .url without a default storage backend configured."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='goalsetter', password='TestPass123!')
+        self.client.force_authenticate(user=self.user)
+
+    def test_get_profile_does_not_500(self):
+        response = self.client.get('/users/api/profile/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.json()['profile']['goal_target_score'])
+
+    def test_can_set_and_persist_goals(self):
+        response = self.client.put(
+            '/users/api/profile/',
+            {'profile': {'goal_target_score': 95, 'goal_target_interviews': 10}},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        refetched = self.client.get('/users/api/profile/')
+        self.assertEqual(refetched.json()['profile']['goal_target_score'], 95)
+        self.assertEqual(refetched.json()['profile']['goal_target_interviews'], 10)
