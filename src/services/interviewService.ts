@@ -134,6 +134,28 @@ export const getInterviewById = async (interviewId: number): Promise<MockIntervi
 };
 
 /**
+ * Save a client-side-analyzed mock interview attempt so it shows up in the
+ * user's history. Silently no-ops on failure — history is a convenience
+ * feature, not something that should block the user from seeing their
+ * just-completed feedback.
+ */
+export const saveInterviewAttempt = async (attempt: {
+  title: string;
+  transcript: string;
+  duration: number;
+  overall_score: number;
+  audio_analysis?: object;
+  content_analysis?: object;
+  feedback?: object;
+}): Promise<void> => {
+  try {
+    await axios.post(`${API_BASE_URL}/api/resume/save-interview-attempt/`, attempt);
+  } catch (error) {
+    console.error('Error saving interview attempt:', error);
+  }
+};
+
+/**
  * This function performs client-side analysis of the interview transcript
  */
 const performClientSideAnalysis = async (

@@ -586,6 +586,41 @@ def ai_tools_generate(request):
 
 ai_tools_generate.cls.throttle_scope = 'ai_tools'
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def save_interview_attempt(request):
+    """
+    Save a mock interview attempt analyzed client-side (see clientAnalysisService.ts)
+    so it shows up in the user's history. MockInterviewSerializer marks
+    overall_score read-only (it's normally set by the server-side Azure
+    analysis path), so this bypasses that serializer entirely — the score
+    here is the user's own client-computed result for their own recording,
+    not something that needs protecting from them.
+    """
+    title = request.data.get('title', 'Mock Interview')
+    transcript = request.data.get('transcript', '')
+    duration = request.data.get('duration', 0)
+    overall_score = request.data.get('overall_score', 0)
+
+    try:
+        overall_score = int(overall_score)
+        duration = float(duration)
+    except (TypeError, ValueError):
+        return Response({'error': 'overall_score and duration must be numeric.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    mock_interview = MockInterview.objects.create(
+        user=request.user,
+        title=title,
+        transcript=transcript,
+        duration=duration,
+        overall_score=overall_score,
+        audio_analysis=request.data.get('audio_analysis', {}) or {},
+        content_analysis=request.data.get('content_analysis', {}) or {},
+        feedback=request.data.get('feedback', {}) or {},
+    )
+
+    return Response(MockInterviewSerializer(mock_interview).data, status=status.HTTP_201_CREATED)
+
 class BookmarkedAnswerViewSet(viewsets.ModelViewSet):
     """Chatbot answers the user starred for quick reference later."""
     serializer_class = BookmarkedAnswerSerializer

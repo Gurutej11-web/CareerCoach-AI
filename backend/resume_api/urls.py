@@ -20,6 +20,7 @@ urlpatterns = [
     #Mock Interview
     path('analyze-interview/', views.analyze_interview, name='analyze-interview'),
     path('interview-feedback/<int:interview_id>/', views.get_interview_feedback, name='interview-feedback'),
+    path('save-interview-attempt/', views.save_interview_attempt, name='save-interview-attempt'),
 
     # Interview preparation chatbot URLs
     path('interview/chat/', views.interview_chat, name='interview-chat'),

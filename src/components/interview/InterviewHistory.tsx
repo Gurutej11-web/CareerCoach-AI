@@ -9,7 +9,6 @@ import {
   Divider, 
   Chip,
   CircularProgress,
-  Button,
   Grid
 } from '@mui/material';
 import { getUserInterviews, MockInterview } from '../../services/interviewService';
@@ -114,19 +113,12 @@ const InterviewHistory: React.FC = () => {
                     }
                   />
                 </Grid>
-                <Grid item xs={12} sm={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                  <Chip 
-                    label={`Score: ${interview.overall_score}%`} 
-                    color={getScoreColor(interview.overall_score)} 
-                    sx={{ fontWeight: 'bold', mb: 1 }}
+                <Grid item xs={12} sm={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <Chip
+                    label={`Score: ${interview.overall_score}%`}
+                    color={getScoreColor(interview.overall_score)}
+                    sx={{ fontWeight: 'bold' }}
                   />
-                  <Button 
-                    variant="outlined" 
-                    size="small" 
-                    href={`/interviews/${interview.id}`}
-                  >
-                    View Details
-                  </Button>
                 </Grid>
               </Grid>
             </ListItem>

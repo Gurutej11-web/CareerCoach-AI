@@ -263,3 +263,47 @@ class BookmarkedAnswerTests(APITestCase):
         response = self.client.delete(f'/api/resume/bookmarks/{other_bookmark.id}/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(BookmarkedAnswer.objects.filter(id=other_bookmark.id).exists())
+
+
+class SaveInterviewAttemptTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='interviewsaver', password='TestPass123!')
+        self.client.force_authenticate(user=self.user)
+
+    def test_requires_authentication(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.post(
+            '/api/resume/save-interview-attempt/',
+            {'title': 'Q1', 'transcript': 'my answer', 'duration': 30, 'overall_score': 80},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_saves_attempt_with_real_score(self):
+        response = self.client.post(
+            '/api/resume/save-interview-attempt/',
+            {
+                'title': 'Tell me about yourself',
+                'transcript': 'I am a software engineer...',
+                'duration': 45.5,
+                'overall_score': 85,
+                'content_analysis': {'overall_score': 85, 'clarity_score': 90},
+                'feedback': {'general_feedback': 'Good job'},
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()['overall_score'], 85)
+
+        history = self.client.get('/api/resume/mock-interviews/')
+        results = history.json() if isinstance(history.json(), list) else history.json()['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['title'], 'Tell me about yourself')
+
+    def test_rejects_non_numeric_score(self):
+        response = self.client.post(
+            '/api/resume/save-interview-attempt/',
+            {'title': 'Q1', 'transcript': 'answer', 'duration': 30, 'overall_score': 'not-a-number'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

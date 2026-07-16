@@ -45,12 +45,14 @@ import {
   Refresh as RefreshIcon,
   Download as DownloadIcon
 } from '@mui/icons-material';
-import { InterviewAnalysisResult } from '../../services/interviewService';
+import { InterviewAnalysisResult, saveInterviewAttempt } from '../../services/interviewService';
 import { initSpeechRecognition } from '../../services/azureSpeechService';
 import { analyzeTranscript } from '../../services/clientAnalysisService';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { generateInterviewReportPdf } from '../../utils/pdfReport';
 import { useNotification } from '../../contexts/NotificationContext';
+import InterviewHistory from './InterviewHistory';
 import { QUESTION_BANKS, getQuestionBank } from '../../constants/interviewQuestionBanks';
 
 // Interview feedback component
@@ -438,8 +440,10 @@ const MockInterviewPage: React.FC = () => {
   } | null>(null);
   
   const { addActivity } = useRecentActivity();
-  
-  // Initialize component 
+  const { isAuthenticated } = useAuth();
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  // Initialize component
   useEffect(() => {
     // Ensure current question index is valid on component mount
     if (currentQuestionIndex >= questions.length) {
@@ -633,7 +637,7 @@ const MockInterviewPage: React.FC = () => {
       );
 
       setAnalysisResult(result);
-      
+
       // Add activity when interview is analyzed
       const score = result?.content_analysis?.overall_score;
       addActivity(
@@ -641,6 +645,19 @@ const MockInterviewPage: React.FC = () => {
         `Interview Analyzed: Score ${score ?? 'N/A'}`,
         typeof score === 'number' ? score : undefined
       );
+
+      if (isAuthenticated && typeof score === 'number') {
+        await saveInterviewAttempt({
+          title: questions[currentQuestionIndex],
+          transcript,
+          duration: recordingDuration || 0,
+          overall_score: score,
+          audio_analysis: result.audio_analysis,
+          content_analysis: result.content_analysis,
+          feedback: result.feedback,
+        });
+        setHistoryRefreshKey((k) => k + 1);
+      }
     } catch (error) {
       console.error('Error analyzing interview:', error);
       setError("We couldn't analyze your answer just now. Please try again in a moment.");
@@ -1012,7 +1029,13 @@ const MockInterviewPage: React.FC = () => {
           />
         </Grid>
       </Grid>
-      
+
+      {isAuthenticated && (
+        <Box sx={{ mt: 4 }}>
+          <InterviewHistory key={historyRefreshKey} />
+        </Box>
+      )}
+
       {/* Question Dialog */}
       <Dialog open={showQuestionDialog} onClose={() => setShowQuestionDialog(false)}>
         <DialogTitle>{editMode ? 'Edit Question' : 'Add New Question'}</DialogTitle>
