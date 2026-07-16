@@ -24,7 +24,12 @@ import {
   Tooltip,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent
 } from '@mui/material';
 import { 
   Mic as MicIcon,
@@ -37,12 +42,16 @@ import {
   NavigateBefore as PrevIcon,
   Add as AddIcon,
   Edit as EditIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { InterviewAnalysisResult } from '../../services/interviewService';
 import { initSpeechRecognition } from '../../services/azureSpeechService';
 import { analyzeTranscript } from '../../services/clientAnalysisService';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
+import { generateInterviewReportPdf } from '../../utils/pdfReport';
+import { useNotification } from '../../contexts/NotificationContext';
+import { QUESTION_BANKS, getQuestionBank } from '../../constants/interviewQuestionBanks';
 
 // Interview feedback component
 const InterviewFeedback: React.FC<{ 
@@ -52,6 +61,13 @@ const InterviewFeedback: React.FC<{
 }> = ({ analysis, transcript, onRestart }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { notify } = useNotification();
+
+  const handleDownloadReport = () => {
+    if (!analysis) return;
+    generateInterviewReportPdf(analysis, transcript);
+    notify('Report downloaded', 'success');
+  };
 
   useEffect(() => {
     // Create an audio element when the component mounts
@@ -236,11 +252,20 @@ const InterviewFeedback: React.FC<{
             <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
               Overall Score:
             </Typography>
-            <Chip 
-              label={`${analysis.content_analysis.overall_score}/100`} 
+            <Chip
+              label={`${analysis.content_analysis.overall_score}/100`}
               color={analysis.content_analysis.overall_score > 70 ? "success" : "warning"}
               size="small"
             />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadReport}
+              sx={{ ml: 2 }}
+            >
+              Download PDF
+            </Button>
           </Box>
         </Box>
         
@@ -386,11 +411,14 @@ const MockInterviewPage: React.FC = () => {
   const [speechRecognitionControls, setSpeechRecognitionControls] = useState<any>(null);
   
   // State for custom job title and questions
-  const [questions, setQuestions] = useState<string[]>([
-    'Tell me about yourself.',
-    'How do you approach debugging a complex issue?',
-    'What are your greatest strengths?'
-  ]);
+  const [questionBankId, setQuestionBankId] = useState<string>('general');
+  const [questions, setQuestions] = useState<string[]>(
+    getQuestionBank('general')?.questions ?? [
+      'Tell me about yourself.',
+      'How do you approach debugging a complex issue?',
+      'What are your greatest strengths?'
+    ]
+  );
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [showQuestionDialog, setShowQuestionDialog] = useState<boolean>(false);
   const [newQuestion, setNewQuestion] = useState<string>('');
@@ -678,6 +706,15 @@ const MockInterviewPage: React.FC = () => {
     setEditMode(true);
     setShowQuestionDialog(true);
   };
+
+  // Swap in a role-specific set of practice questions
+  const handleQuestionBankChange = (bankId: string) => {
+    const bank = getQuestionBank(bankId);
+    if (!bank) return;
+    setQuestionBankId(bankId);
+    setQuestions(bank.questions);
+    setCurrentQuestionIndex(0);
+  };
   
   // Handle restarting the interview
   const handleRestartInterview = () => {
@@ -718,7 +755,22 @@ const MockInterviewPage: React.FC = () => {
               <Typography variant="h5" component="h2" gutterBottom fontWeight="bold">
                 Practice Interview
               </Typography>
-              
+
+              <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="question-bank-label">Question category</InputLabel>
+                <Select
+                  labelId="question-bank-label"
+                  label="Question category"
+                  value={questionBankId}
+                  disabled={isRecording}
+                  onChange={(e: SelectChangeEvent) => handleQuestionBankChange(e.target.value)}
+                >
+                  {QUESTION_BANKS.map((bank) => (
+                    <MenuItem key={bank.id} value={bank.id}>{bank.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
               <Paper elevation={1} sx={{ p: 2, mb: 3, backgroundColor: 'background.default', borderLeft: '4px solid', borderColor: 'primary.main' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                   <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>

@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { ResumeAnalysisResult } from '../services/resumeService';
+import { InterviewAnalysisResult } from '../services/interviewService';
 import { Activity } from '../contexts/RecentActivityContext';
 
 const MARGIN = 15;
@@ -145,6 +146,72 @@ export function generateProgressReportPdf(activities: Activity[], fileName = 'ca
     .slice(0, 25)
     .map((a) => `[${a.date}] ${a.description}${typeof a.score === 'number' ? ` — score: ${a.score}` : ''}`);
   addBulletList(doc, y, activityLines.length ? activityLines : ['No activity recorded yet.']);
+
+  doc.save(fileName);
+}
+
+export function generateInterviewReportPdf(
+  result: InterviewAnalysisResult,
+  transcript: string,
+  fileName = 'mock-interview-report.pdf'
+) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  let y = MARGIN;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(79, 70, 229);
+  doc.text('CareerCoach AI — Mock Interview Report', MARGIN, y);
+  y += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, MARGIN, y);
+  y += 10;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`Overall Score: ${result.content_analysis.overall_score}/100`, MARGIN, y);
+  y += 10;
+
+  y = addSectionTitle(doc, y, 'Delivery');
+  y = addBulletList(doc, y, [
+    `Pace: ${result.audio_analysis.pace_score}/100 — ${result.audio_analysis.pace_feedback}`,
+    `Volume: ${result.audio_analysis.volume_score}/100 — ${result.audio_analysis.volume_feedback}`,
+  ]);
+  y += 4;
+
+  y = addSectionTitle(doc, y, 'Content');
+  y = addBulletList(doc, y, [
+    `Relevance: ${result.content_analysis.relevance_score}/100 — ${result.content_analysis.relevance_feedback}`,
+    `Clarity: ${result.content_analysis.clarity_score}/100 — ${result.content_analysis.clarity_feedback}`,
+  ]);
+  y += 4;
+
+  if (result.content_analysis.strengths?.length) {
+    y = addSectionTitle(doc, y, 'Strengths');
+    y = addBulletList(doc, y, result.content_analysis.strengths);
+    y += 4;
+  }
+
+  if (result.content_analysis.improvement_areas?.length) {
+    y = addSectionTitle(doc, y, 'Areas to Improve');
+    y = addBulletList(doc, y, result.content_analysis.improvement_areas);
+    y += 4;
+  }
+
+  if (result.feedback?.suggestions?.length) {
+    y = addSectionTitle(doc, y, 'Suggestions');
+    y = addBulletList(doc, y, result.feedback.suggestions);
+    y += 4;
+  }
+
+  if (transcript) {
+    y = addSectionTitle(doc, y, 'Transcript');
+    y = addBulletList(doc, y, [transcript]);
+  }
 
   doc.save(fileName);
 }
