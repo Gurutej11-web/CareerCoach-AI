@@ -13,6 +13,7 @@ import ScoreProgressChart from './ScoreProgressChart';
 import AchievementsPanel from './AchievementsPanel';
 import ActivityHeatmap from './ActivityHeatmap';
 import GoalsCard from './GoalsCard';
+import InterviewCountdown from './InterviewCountdown';
 import EmailVerificationBanner from './EmailVerificationBanner';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
@@ -128,6 +129,8 @@ const DashboardContent: React.FC = () => {
         <ScoreProgressChart />
 
         <GoalsCard />
+
+        <InterviewCountdown />
 
         <AchievementsPanel />
 

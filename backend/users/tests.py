@@ -257,3 +257,29 @@ class SessionManagerTests(APITestCase):
         from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
         other_token = OutstandingToken.objects.filter(user=self.other_user).first()
         self.assertFalse(BlacklistedToken.objects.filter(token=other_token).exists())
+
+
+class InterviewCountdownTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='countdownuser', password='TestPass123!')
+        self.client.force_authenticate(user=self.user)
+
+    def test_defaults_to_no_date_set(self):
+        response = self.client.get('/users/api/profile/')
+        self.assertIsNone(response.json()['profile']['upcoming_interview_date'])
+
+    def test_can_set_and_clear_the_date(self):
+        response = self.client.put(
+            '/users/api/profile/',
+            {'profile': {'upcoming_interview_date': '2026-08-01', 'upcoming_interview_label': 'Acme Corp'}},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['profile']['upcoming_interview_date'], '2026-08-01')
+
+        cleared = self.client.put(
+            '/users/api/profile/',
+            {'profile': {'upcoming_interview_date': None}},
+            format='json',
+        )
+        self.assertIsNone(cleared.json()['profile']['upcoming_interview_date'])

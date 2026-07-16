@@ -26,6 +26,10 @@ class Profile(models.Model):
     # across devices like everything else on the dashboard.
     goal_target_score = models.IntegerField(null=True, blank=True)
     goal_target_interviews = models.IntegerField(null=True, blank=True)
+    # Optional date for an upcoming real interview, shown as a countdown
+    # with a prep checklist on the dashboard.
+    upcoming_interview_date = models.DateField(null=True, blank=True)
+    upcoming_interview_label = models.CharField(max_length=100, blank=True)
     # Verification is informational only (a dismissible banner) — it does not
     # gate login, so it can't lock anyone out of an account they already have.
     email_verified = models.BooleanField(default=False)

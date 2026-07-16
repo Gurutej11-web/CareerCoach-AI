@@ -15,6 +15,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = [
             'bio', 'location', 'birth_date', 'profile_picture', 'job_title', 'company', 'skills',
             'phone_number', 'goal_target_score', 'goal_target_interviews', 'email_verified',
+            'upcoming_interview_date', 'upcoming_interview_label',
         ]
         read_only_fields = ['email_verified']
 
