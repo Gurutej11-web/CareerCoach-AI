@@ -35,7 +35,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ filter = '' }) => {
 
   return (
     <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
-      <Typography variant="h5" component="h2" gutterBottom fontWeight="bold" sx={{fontSize: '35px'}}>
+      <Typography variant="h6" component="h2" gutterBottom fontWeight="bold">
         Recent Activity
       </Typography>
 
