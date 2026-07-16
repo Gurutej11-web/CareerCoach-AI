@@ -11,7 +11,9 @@ export type AIToolId =
   | 'company_research'
   | 'elevator_pitch'
   | 'thank_you_note'
-  | 'interview_predictor';
+  | 'interview_predictor'
+  | 'bullet_rewriter'
+  | 'cover_letter';
 
 export interface AIToolResponse {
   tool: string;

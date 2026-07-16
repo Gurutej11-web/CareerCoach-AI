@@ -82,6 +82,12 @@ export function generateResumeReportPdf(result: ResumeAnalysisResult, fileName =
   if (result.sentimentAnalysis?.sentiment) {
     y = addSectionTitle(doc, y, 'Tone Analysis');
     y = addBulletList(doc, y, [`Overall sentiment: ${result.sentimentAnalysis.sentiment}`]);
+    y += 4;
+  }
+
+  if (result.readability?.score !== null && result.readability?.score !== undefined) {
+    y = addSectionTitle(doc, y, 'Readability');
+    y = addBulletList(doc, y, [`Score: ${result.readability.score}/100 (${result.readability.label})`]);
   }
 
   doc.save(fileName);

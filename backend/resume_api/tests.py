@@ -150,3 +150,39 @@ class AIToolsTests(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    @patch('resume_api.views.get_groq_client')
+    def test_all_registered_tools_are_accepted(self, mock_get_client):
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "generated"
+        mock_get_client.return_value.chat.completions.create.return_value = mock_response
+
+        from .views import AI_TOOLS
+        for tool_id in AI_TOOLS:
+            response = self.client.post(
+                '/api/resume/ai-tools/generate/',
+                {'tool': tool_id, 'input': 'some input'},
+                format='json',
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK, f"tool '{tool_id}' failed")
+
+
+class ReadabilityTests(APITestCase):
+    def setUp(self):
+        from .resume_analyzer import ResumeAnalyzer
+        self.analyzer = ResumeAnalyzer()
+
+    def test_simple_text_scores_higher_than_complex_text(self):
+        simple = "I did the job. I did it well. I am good."
+        complex_text = (
+            "The multifaceted implementation of comprehensive organizational "
+            "methodologies necessitated extraordinarily sophisticated "
+            "interdisciplinary collaboration."
+        )
+        simple_result = self.analyzer._calculate_readability(simple)
+        complex_result = self.analyzer._calculate_readability(complex_text)
+        self.assertGreater(simple_result['score'], complex_result['score'])
+
+    def test_empty_text_returns_none_score(self):
+        result = self.analyzer._calculate_readability('')
+        self.assertIsNone(result['score'])

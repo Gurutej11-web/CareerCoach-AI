@@ -18,6 +18,52 @@ class ResumeAnalyzer:
     
     def __init__(self):
         self.similarity_threshold = 0.6  # Threshold for considering keywords similar
+
+    def _count_syllables(self, word):
+        """Rough vowel-group heuristic — good enough for a readability estimate,
+        no dictionary/NLP dependency required."""
+        word = word.lower().strip(".,;:!?\"'()")
+        if not word:
+            return 0
+        vowel_groups = re.findall(r'[aeiouy]+', word)
+        count = len(vowel_groups)
+        if word.endswith('e') and count > 1:
+            count -= 1
+        return max(count, 1)
+
+    def _calculate_readability(self, text):
+        """
+        Flesch Reading Ease score (0-100, higher = easier to read), computed
+        with a lightweight syllable heuristic so this doesn't need an NLP
+        dependency. Returns a numeric score plus a human-readable label.
+        """
+        sentences = [s for s in re.split(r'[.!?]+', text) if s.strip()]
+        words = re.findall(r"[A-Za-z']+", text)
+
+        if not sentences or not words:
+            return {"score": None, "label": "Not enough text to analyze"}
+
+        syllables = sum(self._count_syllables(w) for w in words)
+        words_per_sentence = len(words) / len(sentences)
+        syllables_per_word = syllables / len(words)
+
+        score = 206.835 - (1.015 * words_per_sentence) - (84.6 * syllables_per_word)
+        score = max(0, min(100, round(score)))
+
+        if score >= 90:
+            label = "Very Easy"
+        elif score >= 70:
+            label = "Easy"
+        elif score >= 60:
+            label = "Standard"
+        elif score >= 50:
+            label = "Fairly Difficult"
+        elif score >= 30:
+            label = "Difficult"
+        else:
+            label = "Very Confusing"
+
+        return {"score": score, "label": label}
     
     def extract_text_from_file(self, file_content, file_type):
         """
@@ -183,7 +229,9 @@ class ResumeAnalyzer:
             technical_skills_in_resume, technical_skills_in_job,
             soft_skills_in_resume, soft_skills_in_job
         )
-        
+
+        readability = self._calculate_readability(resume_text)
+
         # Return the analysis results
         return {
             "keywordsToAdd": keywords_to_add,
@@ -200,7 +248,8 @@ class ResumeAnalyzer:
                 "inResume": soft_skills_in_resume,
                 "missing": missing_soft_skills
             },
-            "sentimentAnalysis": sentiment_analysis
+            "sentimentAnalysis": sentiment_analysis,
+            "readability": readability
         }
     
     def _generate_error_response(self, resume_text, job_desc_text):
@@ -220,9 +269,10 @@ class ResumeAnalyzer:
             "softSkillsMatch": {"inJob": [], "inResume": [], "missing": []},
             "sentimentAnalysis": {
                 "sentiment": "neutral"
-            }
+            },
+            "readability": {"score": None, "label": "Not enough text to analyze"}
         }
-    
+
     def _extract_technical_skills(self, key_phrases, full_text):
         """
         Extract technical skills from key phrases and full text.

@@ -12,6 +12,8 @@ import BusinessIcon from '@mui/icons-material/Business';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import MailIcon from '@mui/icons-material/Mail';
 import QuizIcon from '@mui/icons-material/Quiz';
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import ArticleIcon from '@mui/icons-material/Article';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PageHeader from '../components/common/PageHeader';
 import { generateWithAITool, AIToolId } from '../services/aiToolsService';
@@ -89,6 +91,20 @@ const TOOLS: ToolConfig[] = [
     description: 'Likely questions based on a job posting.',
     icon: <QuizIcon />,
     placeholder: 'Paste the job description here...',
+  },
+  {
+    id: 'bullet_rewriter',
+    title: 'Resume Bullet-Point Rewriter',
+    description: 'Turn duties into quantified achievements.',
+    icon: <FormatListBulletedIcon />,
+    placeholder: 'e.g. Responsible for managing social media accounts\nHelped onboard new employees...',
+  },
+  {
+    id: 'cover_letter',
+    title: 'Cover Letter Generator',
+    description: 'A tailored cover letter draft.',
+    icon: <ArticleIcon />,
+    placeholder: 'e.g. My background: 3 years in marketing, led 2 product launches. Applying for: Marketing Manager at Acme Corp...',
   },
 ];
 

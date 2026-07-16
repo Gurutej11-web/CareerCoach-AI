@@ -17,6 +17,7 @@ import {
   AccordionDetails,
   Grid,
   Tooltip,
+  LinearProgress,
 } from '@mui/material';
 import LoadingState from '../common/LoadingState';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -571,6 +572,40 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
             </Box>
           </AccordionDetails>
         </Accordion>
+
+        {/* Readability Section */}
+        {suggestions.readability && suggestions.readability.score !== null && (
+          <Accordion>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="readability-content"
+              id="readability-header"
+            >
+              <Typography variant="subtitle1" fontWeight="bold">
+                Readability
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {suggestions.readability.label}
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {suggestions.readability.score} / 100
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={suggestions.readability.score}
+                sx={{ height: 8, borderRadius: 4, mb: 2 }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                A higher score means your resume is easier to read at a glance — recruiters often
+                skim resumes in seconds, so shorter sentences and simpler word choices tend to help.
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
+        )}
       </Stack>
 
       <Divider sx={{ my: 3 }} />

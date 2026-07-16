@@ -486,6 +486,19 @@ AI_TOOLS = {
         "likely interview questions for this role, grouped under headings like Behavioral, "
         "Technical, and Situational."
     ),
+    'bullet_rewriter': (
+        'Resume Bullet-Point Rewriter',
+        "You are a resume writing coach. Given the user's raw job duties or bullet points, rewrite "
+        "each one into a concise, achievement-oriented bullet point that leads with a strong action "
+        "verb and includes a quantified result wherever plausible. Return one rewritten bullet per "
+        "line, in the same order as the input."
+    ),
+    'cover_letter': (
+        'Cover Letter Generator',
+        "You are a cover letter writer. Given the user's background/resume summary and the job "
+        "description or role they're applying to, write a concise, tailored cover letter (3-4 short "
+        "paragraphs) that connects their experience to the role without simply repeating the resume."
+    ),
 }
 
 

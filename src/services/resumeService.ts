@@ -25,6 +25,10 @@ export interface ResumeAnalysisResult {
   sentimentAnalysis?: {
     sentiment: 'positive' | 'neutral' | 'negative';
   };
+  readability?: {
+    score: number | null;
+    label: string;
+  };
 }
 
 /**
