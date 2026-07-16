@@ -16,6 +16,8 @@ import {
 } from '@mui/material';
 import {
   Send as SendIcon,
+  Mic as MicIcon,
+  MicOff as MicOffIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
   Add as AddIcon,
@@ -63,6 +65,8 @@ const InterviewChatbot: React.FC = () => {
     "Questions to ask the interviewer",
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [bookmarks, setBookmarks] = useState<BookmarkedAnswer[]>([]);
@@ -258,6 +262,39 @@ const InterviewChatbot: React.FC = () => {
     handleSendMessage(question);
   };
 
+  const isVoiceInputSupported = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
+  const handleToggleVoiceInput = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) {
+      notify('Voice input is not supported in this browser.', 'error');
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInputValue((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+    recognition.onerror = () => {
+      notify('Could not hear that — please try again or type your question.', 'error');
+    };
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
+
   return (
     <Box sx={{ flexGrow: 1, py: 4, px: { xs: 2, md: 4 } }}>
       <Container maxWidth="xl">
@@ -432,7 +469,7 @@ const InterviewChatbot: React.FC = () => {
                   <TextField
                     fullWidth
                     variant="outlined"
-                    placeholder="Type your question here..."
+                    placeholder={isListening ? 'Listening...' : 'Type your question here...'}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => {
@@ -444,7 +481,20 @@ const InterviewChatbot: React.FC = () => {
                     size="small"
                     disabled={isLoading}
                   />
-                  <Button 
+                  {isVoiceInputSupported && (
+                    <Tooltip title={isListening ? 'Stop listening' : 'Speak your question'}>
+                      <IconButton
+                        color={isListening ? 'error' : 'default'}
+                        onClick={handleToggleVoiceInput}
+                        disabled={isLoading}
+                        sx={{ mr: 1 }}
+                        aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                      >
+                        {isListening ? <MicOffIcon /> : <MicIcon />}
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Button
                     variant="contained" 
                     color="primary" 
                     endIcon={isLoading ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
