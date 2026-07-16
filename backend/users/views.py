@@ -291,3 +291,53 @@ def resend_verification_email(request):
 
     send_verification_email(request.user)
     return Response({'detail': 'Verification email sent.'}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_sessions(request):
+    """
+    List the user's active login sessions (outstanding, non-blacklisted,
+    non-expired refresh tokens). There's no per-device fingerprint captured
+    at login, so sessions are identified by when they were created rather
+    than by device/browser.
+    """
+    from django.utils import timezone
+    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
+    blacklisted_ids = BlacklistedToken.objects.values_list('token_id', flat=True)
+    sessions = (
+        OutstandingToken.objects.filter(user=request.user, expires_at__gt=timezone.now())
+        .exclude(id__in=blacklisted_ids)
+        .order_by('-created_at')
+    )
+    return Response([
+        {'id': s.id, 'created_at': s.created_at, 'expires_at': s.expires_at}
+        for s in sessions
+    ])
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def revoke_session(request):
+    """Revoke a single session (blacklists that refresh token so it can no longer be used to get new access tokens)."""
+    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
+    session_id = request.data.get('id')
+    try:
+        token = OutstandingToken.objects.get(id=session_id, user=request.user)
+    except OutstandingToken.DoesNotExist:
+        return Response({'error': 'Session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    BlacklistedToken.objects.get_or_create(token=token)
+    return Response({'detail': 'Session revoked.'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def revoke_all_sessions(request):
+    """Log the user out everywhere by blacklisting every outstanding refresh token."""
+    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
+    tokens = OutstandingToken.objects.filter(user=request.user)
+    for token in tokens:
+        BlacklistedToken.objects.get_or_create(token=token)
+
+    return Response({'detail': 'All sessions revoked. You will need to log in again on other devices.'}, status=status.HTTP_200_OK)

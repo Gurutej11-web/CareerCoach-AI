@@ -205,3 +205,55 @@ class EmailVerificationTests(APITestCase):
         response = self.client.post('/users/api/resend-verification/', {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(mail.outbox), 0)
+
+
+class SessionManagerTests(APITestCase):
+    def setUp(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        self.user = User.objects.create_user(username='sessionowner', password='TestPass123!')
+        self.other_user = User.objects.create_user(username='otheruser', password='TestPass123!')
+        self.client.force_authenticate(user=self.user)
+        # Simulate two prior logins for this user, plus one for a different user.
+        RefreshToken.for_user(self.user)
+        RefreshToken.for_user(self.user)
+        RefreshToken.for_user(self.other_user)
+
+    def test_requires_authentication(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get('/users/api/sessions/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_lists_only_own_sessions(self):
+        response = self.client.get('/users/api/sessions/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.json()), 2)
+
+    def test_revoke_session_removes_it_from_the_list(self):
+        sessions = self.client.get('/users/api/sessions/').json()
+        session_id = sessions[0]['id']
+
+        response = self.client.post('/users/api/sessions/revoke/', {'id': session_id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        remaining = self.client.get('/users/api/sessions/').json()
+        self.assertEqual(len(remaining), 1)
+        self.assertNotIn(session_id, [s['id'] for s in remaining])
+
+    def test_cannot_revoke_another_users_session(self):
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+        other_token = OutstandingToken.objects.filter(user=self.other_user).first()
+
+        response = self.client.post('/users/api/sessions/revoke/', {'id': other_token.id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_revoke_all_clears_the_list(self):
+        response = self.client.post('/users/api/sessions/revoke-all/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        remaining = self.client.get('/users/api/sessions/').json()
+        self.assertEqual(len(remaining), 0)
+
+        # The other user's session must be untouched.
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+        other_token = OutstandingToken.objects.filter(user=self.other_user).first()
+        self.assertFalse(BlacklistedToken.objects.filter(token=other_token).exists())

@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import Sidebar from '../components/dashboard/Sidebar';
+import ActiveSessions from '../components/profile/ActiveSessions';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -471,6 +472,8 @@ const Profile: React.FC = () => {
                       </Grid>
                     </Grid>
                   </form>
+
+                  <ActiveSessions />
 
                   <Typography variant="h5" gutterBottom sx={{ mt: 6, color: 'error.main' }}>
                     Danger Zone
