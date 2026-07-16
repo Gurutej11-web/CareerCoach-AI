@@ -14,6 +14,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const menuItems = [
   {
@@ -35,6 +36,11 @@ const menuItems = [
     text: 'Interview Chatbot',
     icon: <ChatIcon />,
     path: '/chat',
+  },
+  {
+    text: 'AI Tools',
+    icon: <AutoAwesomeIcon />,
+    path: '/ai-tools',
   },
 ];
 

@@ -1,3 +1,5 @@
+from unittest.mock import patch, MagicMock
+
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APITestCase
@@ -92,3 +94,59 @@ class ChatSessionsTests(APITestCase):
         session_ids = {s['session_id'] for s in response.json()}
         self.assertEqual(session_ids, {'session-1', 'session-2'})
         self.assertEqual(len(response.json()), 2)
+
+
+class AIToolsTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='aitooluser', password='TestPass123!')
+        self.client.force_authenticate(user=self.user)
+
+    def test_requires_authentication(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.post(
+            '/api/resume/ai-tools/generate/',
+            {'tool': 'salary_negotiation', 'input': 'test'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_rejects_unknown_tool(self):
+        response = self.client.post(
+            '/api/resume/ai-tools/generate/',
+            {'tool': 'not_a_real_tool', 'input': 'test'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rejects_empty_input(self):
+        response = self.client.post(
+            '/api/resume/ai-tools/generate/',
+            {'tool': 'salary_negotiation', 'input': '  '},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch('resume_api.views.get_groq_client')
+    def test_valid_tool_returns_generated_result(self, mock_get_client):
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "Here's your negotiation script..."
+        mock_get_client.return_value.chat.completions.create.return_value = mock_response
+
+        response = self.client.post(
+            '/api/resume/ai-tools/generate/',
+            {'tool': 'salary_negotiation', 'input': 'I got an offer for $95k'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['result'], "Here's your negotiation script...")
+        self.assertEqual(response.json()['label'], 'Salary Negotiation Coach')
+
+    @patch('resume_api.views.get_groq_client')
+    def test_groq_failure_returns_503_not_500(self, mock_get_client):
+        mock_get_client.side_effect = Exception('API down')
+        response = self.client.post(
+            '/api/resume/ai-tools/generate/',
+            {'tool': 'salary_negotiation', 'input': 'test input'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)

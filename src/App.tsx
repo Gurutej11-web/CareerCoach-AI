@@ -19,6 +19,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const MockInterview = lazy(() => import('./pages/MockInterview'));
 const Resume = lazy(() => import('./pages/ResumeTailoring'));
 const InterviewChatbot = lazy(() => import('./pages/InterviewChatbot'));
+const AITools = lazy(() => import('./pages/AITools'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
@@ -46,6 +47,7 @@ function AnimatedRoutes() {
           <Route path="/mock-interview" element={<MockInterview />} />
           <Route path="/resume" element={<Resume />} />
           <Route path="/chat" element={<InterviewChatbot />} />
+          <Route path="/ai-tools" element={<AITools />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           {/* Add more routes here as we create more pages */}

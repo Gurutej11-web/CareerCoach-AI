@@ -180,6 +180,7 @@ REST_FRAMEWORK = {
     # costs a real Groq API call.
     'DEFAULT_THROTTLE_RATES': {
         'interview_chat': '30/minute',
+        'ai_tools': '20/minute',
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }

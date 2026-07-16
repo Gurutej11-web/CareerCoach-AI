@@ -47,7 +47,7 @@ from .interview_analyzer import InterviewAnalyzer
 from . import azure_language_client
 from . import azure_speech_client
 from . import azure_language_client
-from .groq_client import InterviewChatbot
+from .groq_client import InterviewChatbot, get_groq_client
 import json
 
 # Initialize the resume analyzer and interview chatbot
@@ -429,3 +429,103 @@ class UserActivityViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+# Each entry is a (label, system prompt) pair used to steer the Groq model
+# toward one specific career-coaching task. Keyed by the id the frontend
+# sends so new tools can be added here without touching the view logic.
+AI_TOOLS = {
+    'salary_negotiation': (
+        'Salary Negotiation Coach',
+        "You are a salary negotiation coach. Given the user's job offer details and goals, "
+        "provide a short negotiation script they could say out loud, plus 3-4 concise tips. "
+        "Be practical and specific to the numbers/context they gave you."
+    ),
+    'linkedin_headline': (
+        'LinkedIn Headline & Summary Optimizer',
+        "You are a LinkedIn profile optimization expert. Given the user's role, experience, and "
+        "goals, write 3 alternative LinkedIn headlines (under 220 characters each) and a 3-sentence "
+        "'About' summary. Keep it professional and specific, not generic buzzwords."
+    ),
+    'job_red_flags': (
+        'Job Posting Red-Flag Detector',
+        "You are a job posting analyst. Given a job description, list any red flags (vague pay, "
+        "unrealistic requirements for the level, excessive scope, culture warning signs) as bullet "
+        "points, then give an overall risk rating of Low, Medium, or High with a one-line reason."
+    ),
+    'networking_message': (
+        'Networking Message Generator',
+        "You are a professional networking coach. Given who the user wants to contact and why, "
+        "write a concise, warm, non-pushy outreach message (suitable for LinkedIn or email) under "
+        "150 words."
+    ),
+    'skill_gap': (
+        'Skill Gap Analyzer',
+        "You are a career coach. Given the user's current skills and their target role, list the "
+        "key skill gaps as bullet points, and for each one suggest a specific type of course, "
+        "certification, or project that would close it."
+    ),
+    'company_research': (
+        'Company Research Briefing',
+        "You are a company research assistant preparing a candidate for an interview. Given the "
+        "company name and any details provided, produce a short briefing: likely culture/values, "
+        "what they probably care about right now, and 3 smart questions to ask the interviewer."
+    ),
+    'elevator_pitch': (
+        'Elevator Pitch Generator',
+        "You are an elevator pitch coach. Given the user's background and the role they're "
+        "targeting, write a natural-sounding 30-second spoken elevator pitch (roughly 75-100 words)."
+    ),
+    'thank_you_note': (
+        'Post-Interview Thank-You Note',
+        "You are an interview follow-up coach. Given details about the interview (role, interviewer, "
+        "topics discussed), write a concise, warm, professional thank-you email, under 150 words."
+    ),
+    'interview_predictor': (
+        'Interview Question Predictor',
+        "You are an interview question predictor. Given a job description, predict the 6-8 most "
+        "likely interview questions for this role, grouped under headings like Behavioral, "
+        "Technical, and Situational."
+    ),
+}
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([ScopedRateThrottle])
+def ai_tools_generate(request):
+    """
+    Generic endpoint powering the AI Tools hub (salary coach, LinkedIn
+    optimizer, red-flag detector, etc.) — one Groq call per request, steered
+    by a per-tool system prompt, so each new tool is just a dictionary entry
+    rather than a new view.
+    """
+    tool = request.data.get('tool', '')
+    user_input = request.data.get('input', '').strip()
+
+    if tool not in AI_TOOLS:
+        return Response({'error': 'Unknown tool.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not user_input:
+        return Response({'error': 'Please provide some input for this tool.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    label, system_prompt = AI_TOOLS[tool]
+
+    try:
+        client = get_groq_client()
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input},
+            ],
+            temperature=0.7,
+            max_tokens=700,
+        )
+        result = response.choices[0].message.content.strip()
+        return Response({'tool': tool, 'label': label, 'result': result}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response(
+            {'error': 'The AI service is temporarily unavailable. Please try again in a moment.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+ai_tools_generate.cls.throttle_scope = 'ai_tools'

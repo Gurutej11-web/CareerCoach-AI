@@ -25,4 +25,7 @@ urlpatterns = [
     path('interview/history/', views.get_chat_history, name='chat-history'),
     path('interview/sessions/', views.get_chat_sessions, name='chat-sessions'),
     path('interview/faq-topics/', views.get_faq_topics, name='faq-topics'),
-] 
+
+    # AI career tools (salary coach, LinkedIn optimizer, etc.)
+    path('ai-tools/generate/', views.ai_tools_generate, name='ai-tools-generate'),
+]

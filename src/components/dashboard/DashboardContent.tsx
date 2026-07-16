@@ -5,6 +5,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import QuickAccessCard from './QuickAccessCard';
 import RecentActivity from './RecentActivity';
 import StatsOverview from './StatsOverview';
@@ -43,6 +44,15 @@ const quickAccessItems = [
     linkTo: '/chat',
     activityType: 'chatbot' as const,
     activityDescription: 'Started Chatbot Session',
+  },
+  {
+    title: 'AI Career Tools',
+    description: 'Salary negotiation scripts, LinkedIn optimization, red-flag detection, and more.',
+    icon: <AutoAwesomeIcon sx={{ fontSize: 40 }} />,
+    buttonText: 'Explore Tools',
+    linkTo: '/ai-tools',
+    activityType: 'chatbot' as const,
+    activityDescription: 'Opened AI Tools',
   },
 ];
 
