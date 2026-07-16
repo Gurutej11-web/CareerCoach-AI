@@ -2,18 +2,20 @@ import React, { useState } from 'react';
 import { Box, Container, Grid } from '@mui/material';
 import FileUploadArea from '../components/resume/FileUploadArea';
 import SuggestionsPanel from '../components/resume/SuggestionsPanel';
+import AnalysisHistory from '../components/resume/AnalysisHistory';
 import PageHeader from '../components/common/PageHeader';
 import { useRecentActivity } from '../contexts/RecentActivityContext';
 
 const ResumeTailoring: React.FC = () => {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jobDescFile, setJobDescFile] = useState<File | null>(null);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const { addActivity } = useRecentActivity();
 
   const handleFilesUploaded = (newResumeFile: File | null, newJobDescFile: File | null) => {
     setResumeFile(newResumeFile);
     setJobDescFile(newJobDescFile);
-    
+
     // Record this activity when files are uploaded
     if (newResumeFile && newJobDescFile) {
       addActivity(
@@ -41,12 +43,18 @@ const ResumeTailoring: React.FC = () => {
             <FileUploadArea onFilesUploaded={handleFilesUploaded} />
           </Grid>
           <Grid item xs={12} md={7}>
-            <SuggestionsPanel resumeFile={resumeFile} jobDescFile={jobDescFile} />
+            <SuggestionsPanel
+              resumeFile={resumeFile}
+              jobDescFile={jobDescFile}
+              onAnalysisComplete={() => setHistoryRefreshKey((k) => k + 1)}
+            />
           </Grid>
         </Grid>
+
+        <AnalysisHistory key={historyRefreshKey} />
       </Container>
     </Box>
   );
 };
 
-export default ResumeTailoring; 
+export default ResumeTailoring;

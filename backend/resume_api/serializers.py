@@ -17,14 +17,23 @@ class JobDescriptionSerializer(serializers.ModelSerializer):
 
 class ResumeAnalysisSerializer(serializers.ModelSerializer):
     """Serializer for ResumeAnalysis model"""
+    resume_title = serializers.SerializerMethodField()
+    job_description_title = serializers.SerializerMethodField()
+
     class Meta:
         model = ResumeAnalysis
         fields = [
-            'id', 'resume', 'job_description', 'keywords_to_add', 
-            'keywords_to_remove', 'format_suggestions', 
+            'id', 'resume', 'resume_title', 'job_description', 'job_description_title',
+            'keywords_to_add', 'keywords_to_remove', 'format_suggestions',
             'content_suggestions', 'match_score', 'created_at'
         ]
         read_only_fields = ['created_at']
+
+    def get_resume_title(self, obj):
+        return obj.resume.title if obj.resume else None
+
+    def get_job_description_title(self, obj):
+        return obj.job_description.title if obj.job_description else None
 
 class ResumeAnalysisResultSerializer(serializers.Serializer):
     """Serializer for resume analysis results"""

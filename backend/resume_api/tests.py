@@ -67,6 +67,41 @@ class UploadValidationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('unsupported file type', response.json()['error'])
 
+    def test_analyze_persists_history_for_authenticated_user(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        resume_file = SimpleUploadedFile('resume.txt', b'Experienced Python developer with Django skills.', content_type='text/plain')
+        job_desc_file = SimpleUploadedFile('jd.txt', b'Looking for a Python developer with Django experience.', content_type='text/plain')
+        response = self.client.post(
+            '/api/resume/analyze/',
+            {'resume_file': resume_file, 'job_desc_file': job_desc_file},
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        history = self.client.get('/api/resume/analyses/')
+        self.assertEqual(history.status_code, status.HTTP_200_OK)
+        results = history.json() if isinstance(history.json(), list) else history.json()['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['resume_title'], 'resume.txt')
+        self.assertEqual(results[0]['job_description_title'], 'jd.txt')
+
+    def test_analyze_requires_authentication(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.force_authenticate(user=None)
+        resume_file = SimpleUploadedFile('resume.txt', b'Some resume text.', content_type='text/plain')
+        job_desc_file = SimpleUploadedFile('jd.txt', b'Some job description text.', content_type='text/plain')
+        response = self.client.post(
+            '/api/resume/analyze/',
+            {'resume_file': resume_file, 'job_desc_file': job_desc_file},
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        from .models import ResumeAnalysis
+        self.assertEqual(ResumeAnalysis.objects.count(), 0)
+
 
 class ChatSessionsTests(APITestCase):
     """Regression test: get_chat_sessions returned each session once per

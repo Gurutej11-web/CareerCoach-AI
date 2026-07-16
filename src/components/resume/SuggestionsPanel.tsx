@@ -42,9 +42,10 @@ interface SuggestionsPanelProps {
   resumeFile: File | null;
   jobDescFile: File | null;
   onReset?: () => void; // Optional callback for resetting files
+  onAnalysisComplete?: () => void; // Optional callback fired after a successful analysis
 }
 
-const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDescFile, onReset }) => {
+const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDescFile, onReset, onAnalysisComplete }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<ResumeAnalysisResult | null>(null);
@@ -74,6 +75,7 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
       console.log("Sentiment Analysis Result:", result.sentimentAnalysis); // Debug log
       setSuggestions(result);
       addActivity('resume', `Resume Analyzed: ${result.matchScore}% match`, result.matchScore);
+      onAnalysisComplete?.();
     } catch (err) {
       console.error('Error analyzing resume:', err);
       setError('Failed to analyze resume. Please try again.');

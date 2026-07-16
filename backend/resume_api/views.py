@@ -100,7 +100,41 @@ def analyze_resume(request):
     # Specifically check the sentiment analysis part
     sentiment_data = analysis_result.get('sentimentAnalysis', {})
     print("Sentiment Analysis data:", json.dumps(sentiment_data, default=str, indent=2))
-    
+
+    # Persist the analysis for signed-in users so it shows up in their
+    # history (via /api/resume/analyses/) instead of disappearing once the
+    # page is closed — mirrors how mock interviews are already saved.
+    if request.user.is_authenticated:
+        try:
+            resume = Resume.objects.create(
+                user=request.user,
+                title=resume_file.name,
+                file_name=resume_file.name,
+                content=resume_text,
+                file_type=resume_file.name.split('.')[-1],
+            )
+            job_description = JobDescription.objects.create(
+                user=request.user,
+                title=job_desc_file.name,
+                file_name=job_desc_file.name,
+                content=job_desc_text,
+                file_type=job_desc_file.name.split('.')[-1],
+            )
+            ResumeAnalysis.objects.create(
+                user=request.user,
+                resume=resume,
+                job_description=job_description,
+                keywords_to_add=analysis_result.get('keywordsToAdd', []),
+                keywords_to_remove=analysis_result.get('keywordsToRemove', []),
+                format_suggestions=analysis_result.get('formatSuggestions', []),
+                content_suggestions=analysis_result.get('contentSuggestions', []),
+                match_score=analysis_result.get('matchScore', 0),
+            )
+        except Exception as e:
+            # Saving history is a convenience feature — never let a DB hiccup
+            # break the analysis response the user is actively waiting on.
+            print(f"Failed to persist resume analysis history: {e}")
+
     return Response(analysis_result, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
