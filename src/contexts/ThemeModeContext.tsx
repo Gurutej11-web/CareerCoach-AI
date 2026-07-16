@@ -5,11 +5,14 @@ import { getAppTheme } from '../theme';
 interface ThemeModeContextType {
   mode: PaletteMode;
   toggleMode: () => void;
+  highContrast: boolean;
+  toggleHighContrast: () => void;
 }
 
 const ThemeModeContext = createContext<ThemeModeContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'careercoach-theme-mode';
+const CONTRAST_STORAGE_KEY = 'careercoach-high-contrast';
 
 export const ThemeModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<PaletteMode>(() => {
@@ -18,16 +21,25 @@ export const ThemeModeProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
+  const [highContrast, setHighContrast] = useState<boolean>(() => {
+    return localStorage.getItem(CONTRAST_STORAGE_KEY) === 'true';
+  });
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, mode);
   }, [mode]);
 
-  const toggleMode = () => setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
+  useEffect(() => {
+    localStorage.setItem(CONTRAST_STORAGE_KEY, String(highContrast));
+  }, [highContrast]);
 
-  const theme = useMemo(() => getAppTheme(mode), [mode]);
+  const toggleMode = () => setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
+  const toggleHighContrast = () => setHighContrast((prev) => !prev);
+
+  const theme = useMemo(() => getAppTheme(mode, highContrast), [mode, highContrast]);
 
   return (
-    <ThemeModeContext.Provider value={{ mode, toggleMode }}>
+    <ThemeModeContext.Provider value={{ mode, toggleMode, highContrast, toggleHighContrast }}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}

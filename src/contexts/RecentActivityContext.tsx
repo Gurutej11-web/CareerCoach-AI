@@ -14,6 +14,7 @@ export interface Activity {
 // Define the context type
 interface RecentActivityContextType {
   activities: Activity[];
+  isLoading: boolean;
   addActivity: (
     type: Activity['type'],
     description: string,
@@ -33,6 +34,7 @@ export const RecentActivityContext = createContext<RecentActivityContextType | u
 export const RecentActivityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Guards against an out-of-order response: if the login transition (or
   // React StrictMode's double effect invocation) fires more than one fetch
@@ -43,6 +45,7 @@ export const RecentActivityProvider: React.FC<{ children: ReactNode }> = ({ chil
 
   const loadFromBackend = useCallback(async () => {
     const requestId = ++requestIdRef.current;
+    setIsLoading(true);
     const records = await fetchActivities();
     if (requestId !== requestIdRef.current) {
       return; // a newer request superseded this one — discard
@@ -61,6 +64,7 @@ export const RecentActivityProvider: React.FC<{ children: ReactNode }> = ({ chil
         score: r.score ?? undefined,
       }))
     );
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -72,6 +76,7 @@ export const RecentActivityProvider: React.FC<{ children: ReactNode }> = ({ chil
       // land afterward and repopulate stale data, then clear state.
       requestIdRef.current += 1;
       setActivities([]);
+      setIsLoading(false);
     }
   }, [isAuthenticated, loadFromBackend]);
 
@@ -102,7 +107,7 @@ export const RecentActivityProvider: React.FC<{ children: ReactNode }> = ({ chil
   };
 
   return (
-    <RecentActivityContext.Provider value={{ activities, addActivity }}>
+    <RecentActivityContext.Provider value={{ activities, isLoading, addActivity }}>
       {children}
     </RecentActivityContext.Provider>
   );

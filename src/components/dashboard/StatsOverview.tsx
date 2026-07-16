@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Grid, Paper, Box, Typography } from '@mui/material';
+import { Grid, Paper, Box, Typography, Skeleton } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
@@ -53,7 +53,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, color }) => (
 );
 
 const StatsOverview: React.FC = () => {
-  const { activities } = useRecentActivity();
+  const { activities, isLoading } = useRecentActivity();
 
   const stats = useMemo(() => {
     const resumeCount = activities.filter((a) => a.type === 'resume').length;
@@ -67,6 +67,18 @@ const StatsOverview: React.FC = () => {
 
     return { resumeCount, interviewCount, chatbotCount, avgScore };
   }, [activities]);
+
+  if (isLoading) {
+    return (
+      <Grid container spacing={3} sx={{ mb: 1 }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Grid item xs={6} md={3} key={i}>
+            <Skeleton variant="rounded" height={92} sx={{ borderRadius: 2 }} />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  }
 
   return (
     <Grid container spacing={3} sx={{ mb: 1 }}>

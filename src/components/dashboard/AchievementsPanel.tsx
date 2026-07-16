@@ -9,6 +9,7 @@ import StarIcon from '@mui/icons-material/Star';
 import NightsStayIcon from '@mui/icons-material/NightsStay';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import { useRecentActivity, Activity } from '../../contexts/RecentActivityContext';
+import { Skeleton } from '@mui/material';
 
 interface Badge {
   id: string;
@@ -42,7 +43,7 @@ function computeStreak(activities: Activity[]): number {
 }
 
 const AchievementsPanel: React.FC = () => {
-  const { activities } = useRecentActivity();
+  const { activities, isLoading } = useRecentActivity();
 
   const streak = useMemo(() => computeStreak(activities), [activities]);
 
@@ -126,6 +127,21 @@ const AchievementsPanel: React.FC = () => {
   ];
 
   const unlockedCount = badges.filter((b) => b.unlocked).length;
+
+  if (isLoading) {
+    return (
+      <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
+        <Skeleton variant="text" width={160} height={32} sx={{ mb: 2 }} />
+        <Grid container spacing={2}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Grid item xs={6} sm={4} md={2} key={i}>
+              <Skeleton variant="rounded" height={100} sx={{ borderRadius: 2 }} />
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
+    );
+  }
 
   return (
     <Paper elevation={2} sx={{ p: 3, mt: 4 }}>

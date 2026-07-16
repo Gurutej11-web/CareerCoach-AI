@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Paper, Typography, Box, Tooltip, useTheme, alpha } from '@mui/material';
+import { Paper, Typography, Box, Tooltip, useTheme, alpha, Skeleton } from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
 
@@ -11,8 +11,17 @@ function dayKey(date: Date): string {
 }
 
 const ActivityHeatmap: React.FC = () => {
-  const { activities } = useRecentActivity();
+  const { activities, isLoading } = useRecentActivity();
   const theme = useTheme();
+
+  if (isLoading) {
+    return (
+      <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
+        <Skeleton variant="text" width={140} height={32} sx={{ mb: 2 }} />
+        <Skeleton variant="rounded" height={100} sx={{ borderRadius: 2 }} />
+      </Paper>
+    );
+  }
 
   const { cells, totalDays } = useMemo(() => {
     const counts = new Map<string, number>();

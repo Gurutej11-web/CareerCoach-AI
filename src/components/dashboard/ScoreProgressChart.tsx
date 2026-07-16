@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Paper, Typography, Box, useTheme } from '@mui/material';
+import { Paper, Typography, Box, useTheme, Skeleton } from '@mui/material';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
 
@@ -8,8 +8,17 @@ const CHART_HEIGHT = 180;
 const PADDING = 24;
 
 const ScoreProgressChart: React.FC = () => {
-  const { activities } = useRecentActivity();
+  const { activities, isLoading } = useRecentActivity();
   const theme = useTheme();
+
+  if (isLoading) {
+    return (
+      <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
+        <Skeleton variant="text" width={180} height={32} sx={{ mb: 2 }} />
+        <Skeleton variant="rounded" height={180} sx={{ borderRadius: 2 }} />
+      </Paper>
+    );
+  }
 
   const points = useMemo(() => {
     return activities

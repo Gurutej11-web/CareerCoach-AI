@@ -19,6 +19,7 @@ import ChatIcon from '@mui/icons-material/Chat';
 import PersonIcon from '@mui/icons-material/Person';
 import LoginIcon from '@mui/icons-material/Login';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
+import ContrastIcon from '@mui/icons-material/Contrast';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useNavigate } from 'react-router-dom';
 import { useThemeMode } from '../../contexts/ThemeModeContext';
@@ -34,7 +35,7 @@ const CommandPalette: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
-  const { toggleMode } = useThemeMode();
+  const { toggleMode, toggleHighContrast, highContrast } = useThemeMode();
 
   // Single-letter quick-jump shortcuts (GitHub/Gmail-style), only active when
   // the command palette is closed and focus isn't in a text field — so
@@ -88,8 +89,14 @@ const CommandPalette: React.FC = () => {
       { label: 'Profile', keywords: 'profile account settings', icon: <PersonIcon />, action: () => navigate('/profile') },
       { label: 'Login / Sign Up', keywords: 'login signup auth register', icon: <LoginIcon />, action: () => navigate('/login') },
       { label: 'Toggle Dark Mode', keywords: 'dark light theme mode toggle', icon: <Brightness4Icon />, action: toggleMode },
+      {
+        label: highContrast ? 'Turn Off High-Contrast Mode' : 'Turn On High-Contrast Mode',
+        keywords: 'high contrast accessibility colorblind visibility',
+        icon: <ContrastIcon />,
+        action: toggleHighContrast,
+      },
     ],
-    [navigate, toggleMode]
+    [navigate, toggleMode, toggleHighContrast, highContrast]
   );
 
   const filtered = useMemo(() => {

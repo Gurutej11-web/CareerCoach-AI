@@ -14,6 +14,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import MicIcon from '@mui/icons-material/Mic';
 import ChatIcon from '@mui/icons-material/Chat';
 import { useRecentActivity, Activity } from '../../contexts/RecentActivityContext';
+import LoadingState from '../common/LoadingState';
 
 const activityIcons: Record<Activity['type'], React.ReactNode> = {
   resume: <DescriptionIcon color="primary" />,
@@ -27,7 +28,7 @@ interface RecentActivityProps {
 
 const RecentActivity: React.FC<RecentActivityProps> = ({ filter = '' }) => {
   // Get activities from the context
-  const { activities: allActivities } = useRecentActivity();
+  const { activities: allActivities, isLoading } = useRecentActivity();
   const query = filter.trim().toLowerCase();
   const activities = query
     ? allActivities.filter((a) => a.description.toLowerCase().includes(query))
@@ -39,7 +40,9 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ filter = '' }) => {
         Recent Activity
       </Typography>
 
-      {activities.length === 0 ? (
+      {isLoading ? (
+        <LoadingState variant="skeleton" skeletonRows={4} />
+      ) : activities.length === 0 ? (
         <Box sx={{ 
           py: 4, 
           display: 'flex', 
