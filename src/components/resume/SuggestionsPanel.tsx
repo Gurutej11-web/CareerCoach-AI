@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Paper,
   Typography,
@@ -18,10 +18,16 @@ import {
   Grid,
   Tooltip,
   LinearProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
 } from '@mui/material';
 import LoadingState from '../common/LoadingState';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
@@ -35,8 +41,15 @@ import {
   SentimentSatisfied as SentimentSatisfiedIcon,
   SentimentVerySatisfied as SentimentVerySatisfiedIcon,
 } from '@mui/icons-material';
-import { analyzeResume, ResumeAnalysisResult } from '../../services/resumeService';
+import {
+  analyzeResume,
+  ResumeAnalysisResult,
+  getKeywordLibraries,
+  IndustryKeywordLibrary,
+  downloadTailoredResume,
+} from '../../services/resumeService';
 import { generateResumeReportPdf } from '../../utils/pdfReport';
+import { computeWordDiff } from '../../utils/diff';
 
 interface SuggestionsPanelProps {
   resumeFile: File | null;
@@ -49,8 +62,16 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<ResumeAnalysisResult | null>(null);
+  const [industries, setIndustries] = useState<IndustryKeywordLibrary[]>([]);
+  const [selectedIndustry, setSelectedIndustry] = useState<string>('');
+  const [downloading, setDownloading] = useState<boolean>(false);
   const { notify } = useNotification();
   const { addActivity } = useRecentActivity();
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    getKeywordLibraries().then(setIndustries);
+  }, []);
 
   // Add a helper function to check if sentiment analysis is valid
   const isValidSentimentAnalysis = (sentimentData: any): boolean => {
@@ -71,7 +92,7 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
     setSuggestions(null); // Clear previous results
 
     try {
-      const result = await analyzeResume(resumeFile, jobDescFile);
+      const result = await analyzeResume(resumeFile, jobDescFile, selectedIndustry || undefined);
       console.log("Sentiment Analysis Result:", result.sentimentAnalysis); // Debug log
       setSuggestions(result);
       addActivity('resume', `Resume Analyzed: ${result.matchScore}% match`, result.matchScore);
@@ -89,6 +110,37 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
     if (!suggestions) return;
     generateResumeReportPdf(suggestions);
     notify('Report downloaded', 'success');
+  };
+
+  const handleDownloadTailoredResume = async () => {
+    if (!suggestions?.analysisId) return;
+    setDownloading(true);
+    try {
+      await downloadTailoredResume(suggestions.analysisId);
+      notify('Tailored resume downloaded', 'success');
+    } catch (err) {
+      console.error('Error downloading tailored resume:', err);
+      notify('Failed to download tailored resume. Please try again.', 'error');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // A conservative, clearly-labeled preview of what the tailored resume
+  // would look like with the suggested keywords/content appended — used to
+  // render the inline diff below. This intentionally never rewrites the
+  // original text in place (see download_tailored_resume on the backend
+  // for why), so the diff only ever shows additions, never silent rewrites.
+  const buildTailoredPreview = (result: ResumeAnalysisResult): string => {
+    if (!result.resumeText) return '';
+    let preview = result.resumeText.trimEnd();
+    if (result.keywordsToAdd.length > 0) {
+      preview += `\n\nAdditional Skills & Keywords: ${result.keywordsToAdd.join(', ')}`;
+    }
+    if (result.contentSuggestions.length > 0) {
+      preview += `\n\nSuggested Additions:\n${result.contentSuggestions.map((s) => `- ${s}`).join('\n')}`;
+    }
+    return preview;
   };
 
   const handleReset = () => {
@@ -160,14 +212,36 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
         <Typography paragraph>
           Your files are ready for analysis. Click the button below to get tailored suggestions.
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          size="large"
-          onClick={handleAnalyze}
-        >
-          Analyze and Generate Suggestions
-        </Button>
+        {industries.length > 0 && (
+          <FormControl size="small" sx={{ minWidth: 240, mb: 2 }}>
+            <InputLabel id="industry-select-label">Industry keyword library (optional)</InputLabel>
+            <Select
+              labelId="industry-select-label"
+              label="Industry keyword library (optional)"
+              value={selectedIndustry}
+              onChange={(e: SelectChangeEvent) => setSelectedIndustry(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {industries.map((industry) => (
+                <MenuItem key={industry.id} value={industry.id}>
+                  {industry.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+        <Box>
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            onClick={handleAnalyze}
+          >
+            Analyze and Generate Suggestions
+          </Button>
+        </Box>
       </Paper>
     );
   }
@@ -196,6 +270,18 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
           >
             Download PDF
           </Button>
+          {isAuthenticated && suggestions.analysisId && (
+            <Button
+              variant="outlined"
+              color="secondary"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadTailoredResume}
+              disabled={downloading}
+            >
+              {downloading ? 'Preparing…' : 'Download Tailored Resume (.docx)'}
+            </Button>
+          )}
           <Button
             variant="outlined"
             color="primary"
@@ -243,7 +329,16 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
                   <Typography variant="body2">No missing keywords detected.</Typography>
                 )}
               </Box>
-              
+
+              {suggestions.industryKeywordsMatched && suggestions.industryKeywordsMatched.length > 0 && (
+                <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    {suggestions.industryKeywordsMatched.length} of the keywords above came from your
+                    selected industry library: {suggestions.industryKeywordsMatched.join(', ')}
+                  </Typography>
+                </Alert>
+              )}
+
               <Divider sx={{ my: 2 }} />
               
               <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -608,6 +703,55 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
             </AccordionDetails>
           </Accordion>
         )}
+
+        {/* Inline diff of suggested edits against the original resume text */}
+        {suggestions.resumeText && (
+          <Accordion>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="diff-content"
+              id="diff-header"
+            >
+              <Typography variant="subtitle1" fontWeight="bold">
+                Inline Diff Preview
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                A preview of your resume with the suggested keywords and content additions appended
+                (highlighted in green). Nothing in your original text is changed or removed.
+              </Typography>
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 2,
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                  fontFamily: 'monospace',
+                  fontSize: '0.85rem',
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: 400,
+                  overflow: 'auto',
+                }}
+              >
+                {computeWordDiff(suggestions.resumeText, buildTailoredPreview(suggestions)).map((token, index) => (
+                  <Box
+                    key={index}
+                    component="span"
+                    sx={{
+                      bgcolor: token.type === 'added' ? 'success.light' : undefined,
+                      color: token.type === 'added' ? 'success.contrastText' : undefined,
+                      textDecoration: token.type === 'removed' ? 'line-through' : undefined,
+                      opacity: token.type === 'removed' ? 0.5 : 1,
+                    }}
+                  >
+                    {token.text}
+                  </Box>
+                ))}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+        )}
       </Stack>
 
       <Divider sx={{ my: 3 }} />
@@ -615,4 +759,4 @@ const SuggestionsPanel: React.FC<SuggestionsPanelProps> = ({ resumeFile, jobDesc
   );
 };
 
-export default SuggestionsPanel; 
+export default SuggestionsPanel;

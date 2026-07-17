@@ -9,8 +9,6 @@ import {
   Grid,
   Avatar,
   Divider,
-  Snackbar,
-  Alert,
   CircularProgress,
   Drawer,
   Dialog,
@@ -18,13 +16,19 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Switch,
+  FormControlLabel,
+  FormGroup,
 } from '@mui/material';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import Sidebar from '../components/dashboard/Sidebar';
 import ActiveSessions from '../components/profile/ActiveSessions';
+import PasswordStrengthMeter from '../components/common/PasswordStrengthMeter';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { exportUserData } from '../services/profileService';
+import { useNotification } from '../contexts/NotificationContext';
 
 // API base URL
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
@@ -45,6 +49,14 @@ interface UserProfileData {
     company: string;
     skills: string;
     phone_number: string;
+    career_goal: string;
+    target_role: string;
+    leaderboard_opt_in: boolean;
+    portfolio_public: boolean;
+    portfolio_slug: string | null;
+    notify_achievement_alerts: boolean;
+    notify_streak_reminders: boolean;
+    notify_progress_digest: boolean;
   };
 }
 
@@ -55,11 +67,11 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const { notify } = useNotification();
+  const [exporting, setExporting] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -74,6 +86,16 @@ const Profile: React.FC = () => {
     current_password: '',
     new_password: '',
     confirm_password: '',
+    career_goal: '',
+    target_role: '',
+    portfolio_slug: '',
+  });
+  const [preferences, setPreferences] = useState({
+    leaderboard_opt_in: false,
+    portfolio_public: false,
+    notify_achievement_alerts: true,
+    notify_streak_reminders: true,
+    notify_progress_digest: true,
   });
 
   const handleDrawerToggle = () => {
@@ -110,16 +132,27 @@ const Profile: React.FC = () => {
           current_password: '',
           new_password: '',
           confirm_password: '',
+          career_goal: response.data.profile.career_goal || '',
+          target_role: response.data.profile.target_role || '',
+          portfolio_slug: response.data.profile.portfolio_slug || '',
+        });
+        setPreferences({
+          leaderboard_opt_in: response.data.profile.leaderboard_opt_in || false,
+          portfolio_public: response.data.profile.portfolio_public || false,
+          notify_achievement_alerts: response.data.profile.notify_achievement_alerts ?? true,
+          notify_streak_reminders: response.data.profile.notify_streak_reminders ?? true,
+          notify_progress_digest: response.data.profile.notify_progress_digest ?? true,
         });
       } catch (err: any) {
         console.error('Error fetching profile data:', err);
-        setError('Failed to load profile data. Please try again later.');
+        notify('Failed to load profile data. Please try again later.', 'error');
       } finally {
         setLoading(false);
       }
     };
 
     fetchProfileData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,6 +186,8 @@ const Profile: React.FC = () => {
             company: formData.company,
             skills: formData.skills,
             phone_number: formData.phone_number,
+            career_goal: formData.career_goal,
+            target_role: formData.target_role,
           },
         },
         {
@@ -162,12 +197,48 @@ const Profile: React.FC = () => {
         }
       );
 
-      setSuccess('Profile updated successfully');
+      notify('Profile updated successfully', 'success');
     } catch (err: any) {
       console.error('Error updating profile:', err);
-      setError('Failed to update profile. Please try again.');
+      notify('Failed to update profile. Please try again.', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePreferencesUpdate = async () => {
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('access_token');
+      await axios.put(
+        `${API_BASE_URL}/profile/`,
+        {
+          profile: {
+            ...preferences,
+            portfolio_slug: preferences.portfolio_public ? (formData.portfolio_slug || undefined) : formData.portfolio_slug,
+          },
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      notify('Preferences updated successfully', 'success');
+    } catch (err: any) {
+      console.error('Error updating preferences:', err);
+      notify(err.response?.data?.portfolio_slug?.[0] || 'Failed to update preferences. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      await exportUserData();
+      notify('Your data export has started downloading.', 'success');
+    } catch (err) {
+      console.error('Error exporting data:', err);
+      notify('Failed to export your data. Please try again.', 'error');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -175,7 +246,7 @@ const Profile: React.FC = () => {
     e.preventDefault();
     
     if (formData.new_password !== formData.confirm_password) {
-      setError('New passwords do not match');
+      notify('New passwords do not match', 'error');
       return;
     }
     
@@ -205,10 +276,10 @@ const Profile: React.FC = () => {
         confirm_password: '',
       });
       
-      setSuccess('Password changed successfully');
+      notify('Password changed successfully', 'success');
     } catch (err: any) {
       console.error('Error changing password:', err);
-      setError('Failed to change password. Please check your current password.');
+      notify('Failed to change password. Please check your current password.', 'error');
     } finally {
       setSaving(false);
     }
@@ -217,7 +288,6 @@ const Profile: React.FC = () => {
   const handleDeleteAccount = async () => {
     try {
       setDeleting(true);
-      setError(null);
       const token = localStorage.getItem('access_token');
       await axios.post(
         `${API_BASE_URL}/delete-account/`,
@@ -228,7 +298,7 @@ const Profile: React.FC = () => {
       logout();
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete account. Please check your password and try again.');
+      notify(err.response?.data?.error || 'Failed to delete account. Please check your password and try again.', 'error');
     } finally {
       setDeleting(false);
     }
@@ -405,6 +475,28 @@ const Profile: React.FC = () => {
                           onChange={handleChange}
                         />
                       </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Target Role"
+                          name="target_role"
+                          placeholder="e.g. Senior Software Engineer"
+                          value={formData.target_role}
+                          onChange={handleChange}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Career Goal"
+                          name="career_goal"
+                          multiline
+                          rows={2}
+                          placeholder="What are you working toward?"
+                          value={formData.career_goal}
+                          onChange={handleChange}
+                        />
+                      </Grid>
                       <Grid item xs={12}>
                         <Button
                           type="submit"
@@ -447,6 +539,7 @@ const Profile: React.FC = () => {
                           onChange={handleChange}
                           required
                         />
+                        <PasswordStrengthMeter password={formData.new_password} />
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <TextField
@@ -472,6 +565,101 @@ const Profile: React.FC = () => {
                       </Grid>
                     </Grid>
                   </form>
+
+                  <Typography variant="h5" gutterBottom sx={{ mt: 6 }}>
+                    Preferences
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
+                  <FormGroup sx={{ mb: 2 }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={preferences.leaderboard_opt_in}
+                          onChange={(e) => setPreferences({ ...preferences, leaderboard_opt_in: e.target.checked })}
+                        />
+                      }
+                      label="Appear on the anonymized mock-interview leaderboard"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={preferences.notify_achievement_alerts}
+                          onChange={(e) => setPreferences({ ...preferences, notify_achievement_alerts: e.target.checked })}
+                        />
+                      }
+                      label="Notify me about new achievements"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={preferences.notify_streak_reminders}
+                          onChange={(e) => setPreferences({ ...preferences, notify_streak_reminders: e.target.checked })}
+                        />
+                      }
+                      label="Notify me about streaks"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={preferences.notify_progress_digest}
+                          onChange={(e) => setPreferences({ ...preferences, notify_progress_digest: e.target.checked })}
+                        />
+                      }
+                      label="Notify me with progress digest summaries"
+                    />
+                  </FormGroup>
+
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={preferences.portfolio_public}
+                        onChange={(e) => setPreferences({ ...preferences, portfolio_public: e.target.checked })}
+                      />
+                    }
+                    label="Make my portfolio page public"
+                  />
+                  {preferences.portfolio_public && (
+                    <TextField
+                      fullWidth
+                      label="Portfolio URL slug"
+                      name="portfolio_slug"
+                      placeholder="e.g. jane-doe"
+                      value={formData.portfolio_slug}
+                      onChange={handleChange}
+                      helperText={
+                        formData.portfolio_slug
+                          ? `Your portfolio will be visible at ${window.location.origin}/portfolio/${formData.portfolio_slug}`
+                          : 'Choose a URL slug to publish your portfolio'
+                      }
+                      sx={{ mt: 1, mb: 2 }}
+                    />
+                  )}
+
+                  <Box>
+                    <Button
+                      variant="contained"
+                      onClick={handlePreferencesUpdate}
+                      disabled={saving}
+                    >
+                      {saving ? <CircularProgress size={24} /> : 'Save Preferences'}
+                    </Button>
+                  </Box>
+
+                  <Typography variant="h5" gutterBottom sx={{ mt: 6 }}>
+                    Your Data
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
+                  <Typography color="text.secondary" sx={{ mb: 2 }}>
+                    Download a copy of everything tied to your account — resumes, analyses, mock
+                    interviews, chat history, and activity log — as a single JSON file.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    onClick={handleExportData}
+                    disabled={exporting}
+                  >
+                    {exporting ? <CircularProgress size={24} /> : 'Export my data'}
+                  </Button>
 
                   <ActiveSessions />
 
@@ -527,30 +715,6 @@ const Profile: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
-      {/* Success notification */}
-      <Snackbar 
-        open={!!success} 
-        autoHideDuration={6000} 
-        onClose={() => setSuccess(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }}>
-          {success}
-        </Alert>
-      </Snackbar>
-      
-      {/* Error notification */}
-      <Snackbar 
-        open={!!error} 
-        autoHideDuration={6000} 
-        onClose={() => setError(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
-          {error}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

@@ -11,6 +11,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils import timezone
 from .models import Profile
 from .forms import ProfileForm
 
@@ -242,6 +243,48 @@ def confirm_password_reset(request):
 
     return Response({'detail': 'Your password has been reset. You can now log in.'}, status=status.HTTP_200_OK)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_data(request):
+    """
+    GDPR-style full data export: every record tied to the authenticated
+    account, as a single downloadable JSON file. Account deletion already
+    permanently removes this same data (see delete_account below) — this is
+    the "take a copy first" counterpart to that.
+    """
+    from django.http import JsonResponse
+    from django.core.serializers.json import DjangoJSONEncoder
+    from resume_api.models import (
+        Resume, JobDescription, ResumeAnalysis, MockInterview,
+        ChatMessage, BookmarkedAnswer, UserActivity, Notification,
+    )
+
+    user = request.user
+    data = {
+        'exported_at': timezone.now().isoformat(),
+        'user': {
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'date_joined': user.date_joined.isoformat(),
+        },
+        'profile': ProfileSerializer(user.profile).data,
+        'resumes': list(Resume.objects.filter(user=user).values()),
+        'job_descriptions': list(JobDescription.objects.filter(user=user).values()),
+        'resume_analyses': list(ResumeAnalysis.objects.filter(user=user).values()),
+        'mock_interviews': list(MockInterview.objects.filter(user=user).values()),
+        'chat_messages': list(ChatMessage.objects.filter(user=user).values()),
+        'bookmarked_answers': list(BookmarkedAnswer.objects.filter(user=user).values()),
+        'activity_log': list(UserActivity.objects.filter(user=user).values()),
+        'notifications': list(Notification.objects.filter(user=user).values()),
+    }
+
+    response = JsonResponse(data, encoder=DjangoJSONEncoder, json_dumps_params={'indent': 2})
+    response['Content-Disposition'] = f'attachment; filename="careercoach-ai-export-{user.username}.json"'
+    return response
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def delete_account(request):
@@ -341,3 +384,38 @@ def revoke_all_sessions(request):
         BlacklistedToken.objects.get_or_create(token=token)
 
     return Response({'detail': 'All sessions revoked. You will need to log in again on other devices.'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_portfolio(request, slug):
+    """
+    Read-only public portfolio page: bio, job title, skills, career goal, and
+    a couple of headline stats (mock interview count, best resume match
+    score). Only served when the owner explicitly opted in via
+    profile.portfolio_public — otherwise 404 regardless of whether the slug
+    exists, so it can't be used to enumerate accounts.
+    """
+    from resume_api.models import MockInterview, ResumeAnalysis
+
+    try:
+        profile = Profile.objects.select_related('user').get(portfolio_slug__iexact=slug, portfolio_public=True)
+    except Profile.DoesNotExist:
+        return Response({'error': 'Portfolio not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    user = profile.user
+    best_match = ResumeAnalysis.objects.filter(user=user).order_by('-match_score').values_list('match_score', flat=True).first()
+
+    return Response({
+        'display_name': (f"{user.first_name} {user.last_name}".strip() or user.username),
+        'bio': profile.bio,
+        'job_title': profile.job_title,
+        'target_role': profile.target_role,
+        'career_goal': profile.career_goal,
+        'location': profile.location,
+        'skills': [s.strip() for s in profile.skills.split(',') if s.strip()],
+        'stats': {
+            'mock_interviews_completed': MockInterview.objects.filter(user=user).count(),
+            'best_resume_match_score': best_match,
+        },
+    }, status=status.HTTP_200_OK)

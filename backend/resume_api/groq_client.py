@@ -99,25 +99,58 @@ class InterviewChatbot:
         # General career advice response
         return "For successful interviews, thoroughly research the company and position, prepare specific examples that demonstrate your skills, practice common questions, dress professionally, arrive early, and follow up with a thank-you note. Show enthusiasm for the role and come prepared with thoughtful questions about the position and company."
     
-    def get_response(self, user_message, session_messages=None):
+    # How many prior messages of a session to include as context. Keeps
+    # "longer multi-turn memory" bounded so a very long-running session can't
+    # blow past the model's context window — 40 messages is ~20 exchanges,
+    # generous for interview prep without risking a truncated/failed call.
+    MAX_HISTORY_MESSAGES = 40
+
+    def _build_system_prompt(self, mode='advice', job_posting=None):
+        if mode == 'reverse':
+            base = (
+                "You are conducting a mock interview AS THE INTERVIEWER. Ask the candidate one "
+                "interview question at a time. After they answer, give brief (2-3 sentence) "
+                "constructive feedback on their answer, then ask the next question. Vary "
+                "question types (behavioral, situational, role-specific). Keep your turns concise."
+            )
+        else:
+            base = (
+                "You are an interview preparation assistant that helps job seekers prepare for "
+                "interviews. Provide concise, practical advice tailored to common interview "
+                "questions and scenarios. Be supportive, direct, and focus on actionable tips "
+                "that will help the user succeed in their interviews. If you don't know "
+                "something, be honest and suggest alternative resources. Keep responses brief "
+                "and focused on professional interview preparation."
+            )
+        if job_posting:
+            base += (
+                "\n\nThe user is preparing for this specific job posting — tailor every answer "
+                "to its role, requirements, and terminology wherever relevant:\n" + job_posting[:3000]
+            )
+        return base
+
+    def get_response(self, user_message, session_messages=None, mode='advice', job_posting=None):
         """Get a response from the Groq chatbot using Llama 3"""
         # Try Groq/Llama3 first as our primary method
         try:
             print(f"Attempting to call Groq API with message: {user_message}")
             # Prepare conversation history
             messages = [
-                {"role": "system", "content": "You are an interview preparation assistant that helps job seekers prepare for interviews. Provide concise, practical advice tailored to common interview questions and scenarios. Be supportive, direct, and focus on actionable tips that will help the user succeed in their interviews. If you don't know something, be honest and suggest alternative resources. Keep responses brief and focused on professional interview preparation."}
+                {"role": "system", "content": self._build_system_prompt(mode, job_posting)}
             ]
-            
-            # Add conversation history if provided
+
+            # Add conversation history if provided, capped to the most recent
+            # MAX_HISTORY_MESSAGES so long-running sessions stay within the
+            # model's context window instead of failing outright.
             if session_messages:
-                for msg in session_messages:
+                recent_messages = list(session_messages)[-self.MAX_HISTORY_MESSAGES:]
+                for msg in recent_messages:
                     role = "user" if msg.is_user else "assistant"
                     messages.append({"role": role, "content": msg.message})
-            
+
             # Add the current user message
             messages.append({"role": "user", "content": user_message})
-            
+
             # Call Groq API using Llama 3
             response = get_groq_client().chat.completions.create(
                 model=self.model,
@@ -125,24 +158,84 @@ class InterviewChatbot:
                 temperature=0.7,
                 max_tokens=500
             )
-            
+
             # Extract and return the response text
             result = response.choices[0].message.content.strip()
             print(f"Groq API response successful. First 50 chars: {result[:50]}...")
             return result
-        
+
         except Exception as e:
             error_details = traceback.format_exc()
             print(f"Error calling Groq API: {str(e)}")
             print(f"Error details: {error_details}")
-            
+
             # If Groq fails, try predefined answers
             predefined = self.get_predefined_answer(user_message)
             if predefined:
                 print(f"Falling back to predefined answer due to API error")
                 return predefined
-                
+
             # If no predefined answer, use the smart default response
             smart_default = self.get_smart_default_response(user_message)
             print("Falling back to smart default response due to API error")
-            return smart_default 
+            return smart_default
+
+    def get_adaptive_follow_up(self, question, transcript):
+        """
+        Generate one adaptive follow-up interview question that probes deeper
+        into the candidate's just-given answer — e.g. asking for more detail
+        on a claim, a metric, or a tradeoff they mentioned. Falls back to a
+        generic clarifying prompt if Groq is unavailable.
+        """
+        try:
+            response = get_groq_client().chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an interviewer. Given the question that was asked and the "
+                            "candidate's spoken answer, ask exactly ONE natural follow-up question "
+                            "that digs deeper into something specific they said (a claim, a metric, "
+                            "a decision, a tradeoff). Return ONLY the follow-up question, no preamble."
+                        ),
+                    },
+                    {"role": "user", "content": f"Original question: {question}\n\nCandidate's answer: {transcript}"},
+                ],
+                temperature=0.7,
+                max_tokens=80,
+            )
+            return response.choices[0].message.content.strip().strip('"')
+        except Exception as e:
+            print(f"Error generating adaptive follow-up: {str(e)}")
+            return "Can you elaborate on that with a specific example?"
+
+    def get_follow_up_questions(self, user_message, bot_response):
+        """
+        Suggest 3 short follow-up questions the user might want to ask next,
+        based on the exchange that just happened. Best-effort: returns an
+        empty list rather than raising if Groq is unavailable, since this is
+        a secondary UI affordance, not the primary chat response.
+        """
+        try:
+            response = get_groq_client().chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Given the user's interview-prep question and the assistant's answer, "
+                            "suggest exactly 3 short, natural follow-up questions the user might ask "
+                            "next. Return ONLY the 3 questions, one per line, no numbering."
+                        ),
+                    },
+                    {"role": "user", "content": f"Question: {user_message}\n\nAnswer: {bot_response}"},
+                ],
+                temperature=0.7,
+                max_tokens=150,
+            )
+            lines = response.choices[0].message.content.strip().split("\n")
+            return [line.strip("-•* ").strip() for line in lines if line.strip()][:3]
+        except Exception as e:
+            print(f"Error generating follow-up questions: {str(e)}")
+            return []

@@ -62,6 +62,9 @@ yarn-error.log*
 *.swo
 *~
 
+# Claude Code local-only settings (per-machine permission approvals)
+.claude/settings.local.json
+
 # ─── OS ─────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

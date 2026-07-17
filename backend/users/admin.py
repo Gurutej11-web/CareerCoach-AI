@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from .models import Profile
+from .models import Profile, AdminActionLog
 
 # Define an inline admin descriptor for Profile model
 class ProfileInline(admin.StackedInline):
@@ -37,3 +37,21 @@ class CustomUserAdmin(UserAdmin):
 # Re-register UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
+
+@admin.register(AdminActionLog)
+class AdminActionLogAdmin(admin.ModelAdmin):
+    """Read-only audit trail mirroring every admin add/change/delete, with IP."""
+    list_display = ('created_at', 'actor_username', 'action_flag', 'content_type_name', 'object_repr', 'ip_address')
+    list_filter = ('action_flag', 'content_type_name')
+    search_fields = ('actor_username', 'object_repr', 'change_message', 'ip_address')
+    readonly_fields = [f.name for f in AdminActionLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

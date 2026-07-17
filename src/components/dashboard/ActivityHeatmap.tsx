@@ -14,15 +14,6 @@ const ActivityHeatmap: React.FC = () => {
   const { activities, isLoading } = useRecentActivity();
   const theme = useTheme();
 
-  if (isLoading) {
-    return (
-      <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
-        <Skeleton variant="text" width={140} height={32} sx={{ mb: 2 }} />
-        <Skeleton variant="rounded" height={100} sx={{ borderRadius: 2 }} />
-      </Paper>
-    );
-  }
-
   const { cells, totalDays } = useMemo(() => {
     const counts = new Map<string, number>();
     activities.forEach((a) => {
@@ -59,6 +50,15 @@ const ActivityHeatmap: React.FC = () => {
     const intensity = Math.min(1, count / maxCount);
     return alpha(theme.palette.primary.main, 0.25 + intensity * 0.75);
   };
+
+  if (isLoading) {
+    return (
+      <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
+        <Skeleton variant="text" width={140} height={32} sx={{ mb: 2 }} />
+        <Skeleton variant="rounded" height={100} sx={{ borderRadius: 2 }} />
+      </Paper>
+    );
+  }
 
   return (
     <Paper elevation={2} sx={{ p: 3, mt: 4 }}>

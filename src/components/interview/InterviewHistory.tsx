@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  List, 
-  ListItem, 
-  ListItemText, 
-  Divider, 
+import {
+  Box,
+  Paper,
+  Typography,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
   Chip,
-  CircularProgress,
-  Grid
+  Grid,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Stack,
 } from '@mui/material';
-import { getUserInterviews, MockInterview } from '../../services/interviewService';
+import { ExpandMore as ExpandMoreIcon, TrendingUp as TrendingUpIcon } from '@mui/icons-material';
+import { getUserInterviews, getQuestionScoreTrend, MockInterview, QuestionScoreTrend } from '../../services/interviewService';
 import { formatDistanceToNow } from 'date-fns';
+import LoadingState from '../common/LoadingState';
 
 const InterviewHistory: React.FC = () => {
   const [interviews, setInterviews] = useState<MockInterview[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [trends, setTrends] = useState<QuestionScoreTrend[]>([]);
 
   useEffect(() => {
     const fetchInterviews = async () => {
@@ -35,6 +41,7 @@ const InterviewHistory: React.FC = () => {
     };
 
     fetchInterviews();
+    getQuestionScoreTrend().then(setTrends);
   }, []);
 
   // Function to format date
@@ -56,9 +63,10 @@ const InterviewHistory: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
+      <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>Interview History</Typography>
+        <LoadingState variant="skeleton" skeletonRows={4} />
+      </Paper>
     );
   }
 
@@ -90,7 +98,46 @@ const InterviewHistory: React.FC = () => {
       <Typography variant="h6" gutterBottom>
         Interview History
       </Typography>
-      
+
+      {trends.length > 0 && (
+        <Accordion sx={{ mb: 2 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TrendingUpIcon fontSize="small" color="primary" />
+              <Typography variant="subtitle1" fontWeight="bold">
+                Score Trend on Repeated Questions
+              </Typography>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              {trends.map((trend) => (
+                <Box key={trend.question_text}>
+                  <Typography variant="body2" fontWeight="bold" gutterBottom>
+                    {trend.question_text}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    {trend.attempts.map((attempt, i) => (
+                      <React.Fragment key={attempt.id}>
+                        {i > 0 && <Typography variant="body2" color="text.secondary">→</Typography>}
+                        <Chip
+                          label={`${attempt.score}`}
+                          size="small"
+                          color={getScoreColor(attempt.score)}
+                        />
+                      </React.Fragment>
+                    ))}
+                    {trend.attempts[trend.attempts.length - 1].score > trend.attempts[0].score && (
+                      <Chip label="Improving" size="small" color="success" variant="outlined" sx={{ ml: 1 }} />
+                    )}
+                  </Box>
+                </Box>
+              ))}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+      )}
+
       <List sx={{ width: '100%' }}>
         {interviews.map((interview, index) => (
           <React.Fragment key={interview.id}>
@@ -113,12 +160,15 @@ const InterviewHistory: React.FC = () => {
                     }
                   />
                 </Grid>
-                <Grid item xs={12} sm={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+                <Grid item xs={12} sm={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
                   <Chip
                     label={`Score: ${interview.overall_score}%`}
                     color={getScoreColor(interview.overall_score)}
                     sx={{ fontWeight: 'bold' }}
                   />
+                  {interview.difficulty && (
+                    <Chip label={interview.difficulty} size="small" variant="outlined" />
+                  )}
                 </Grid>
               </Grid>
             </ListItem>

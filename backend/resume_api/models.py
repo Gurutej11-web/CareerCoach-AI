@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
 
 class Resume(models.Model):
     """Model to store user's resume information"""
@@ -47,25 +48,40 @@ class ResumeAnalysis(models.Model):
 
 class MockInterview(models.Model):
     """Model to store mock interview data and analysis results"""
+    DIFFICULTY_CHOICES = [
+        ('junior', 'Junior'),
+        ('mid', 'Mid-level'),
+        ('senior', 'Senior'),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="mock_interviews")
-    job_description = models.ForeignKey(JobDescription, on_delete=models.CASCADE, 
+    job_description = models.ForeignKey(JobDescription, on_delete=models.CASCADE,
                                         related_name="mock_interviews", null=True, blank=True)
     title = models.CharField(max_length=100)
     transcript = models.TextField()
     audio_file_path = models.CharField(max_length=255, blank=True, null=True)  # Path to stored audio file
     duration = models.FloatField(default=0.0)  # Duration in seconds
-    
+    difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default='mid')
+    # The actual question asked, so attempts at the same question can be
+    # grouped for a per-question score trend.
+    question_text = models.TextField(blank=True)
+    # Groups multiple question-attempts fired from one "full session" run
+    # into a single combined report. Blank for standalone single-question attempts.
+    session_id = models.CharField(max_length=64, blank=True, db_index=True)
+    # Set only when the user explicitly generates a shareable link for this
+    # attempt, so a mentor can view the (read-only) feedback without logging in.
+    share_token = models.UUIDField(null=True, blank=True, unique=True)
+
     # Analysis results stored as JSON
     audio_analysis = models.JSONField(default=dict)
     content_analysis = models.JSONField(default=dict)
     feedback = models.JSONField(default=dict)
     overall_score = models.IntegerField(default=0)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         verbose_name_plural = "Mock Interviews"
-    
+
     def __str__(self):
         return f"Mock Interview: {self.title} - {self.user.username}"
     
@@ -128,3 +144,32 @@ class BookmarkedAnswer(models.Model):
 
     def __str__(self):
         return f"Bookmark: {self.answer[:50]}... - {self.user.username}"
+
+
+class Notification(models.Model):
+    """
+    In-app notification (streaks, achievements, progress digest) shown in the
+    dashboard's notification center. Separate from email delivery — creating
+    one of these never sends anything on its own.
+    """
+    NOTIFICATION_TYPES = [
+        ('streak', 'Streak'),
+        ('achievement', 'Achievement'),
+        ('digest', 'Progress Digest'),
+        ('system', 'System'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='system')
+    title = models.CharField(max_length=150)
+    message = models.CharField(max_length=500)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.notification_type}: {self.title} - {self.user.username}"

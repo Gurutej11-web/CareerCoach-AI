@@ -19,6 +19,7 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import Logo from '../common/Logo';
+import PasswordStrengthMeter from '../common/PasswordStrengthMeter';
 
 // Define API base URL
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
@@ -383,6 +384,7 @@ const AuthForm: React.FC = () => {
                 ),
               }}
             />
+            {!isLogin && <PasswordStrengthMeter password={formData.password} />}
 
             {!isLogin && (
               <TextField

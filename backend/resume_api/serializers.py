@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Resume, JobDescription, ResumeAnalysis, MockInterview, ChatMessage, UserActivity, BookmarkedAnswer
+from .models import Resume, JobDescription, ResumeAnalysis, MockInterview, ChatMessage, UserActivity, BookmarkedAnswer, Notification
 
 class ResumeSerializer(serializers.ModelSerializer):
     """Serializer for Resume model"""
@@ -48,15 +48,16 @@ class ResumeAnalysisResultSerializer(serializers.Serializer):
 class MockInterviewSerializer(serializers.ModelSerializer):
     """Serializer for MockInterview model"""
     job_description_title = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = MockInterview
         fields = [
             'id', 'title', 'transcript', 'audio_file_path', 'duration',
-            'overall_score', 'created_at', 'job_description', 'job_description_title'
+            'overall_score', 'created_at', 'job_description', 'job_description_title',
+            'difficulty', 'question_text', 'session_id', 'share_token',
         ]
-        read_only_fields = ['created_at', 'overall_score']
-    
+        read_only_fields = ['created_at', 'overall_score', 'share_token']
+
     def get_job_description_title(self, obj):
         """Get the job description title if available"""
         if obj.job_description:
@@ -100,4 +101,12 @@ class BookmarkedAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookmarkedAnswer
         fields = ['id', 'question', 'answer', 'created_at']
-        read_only_fields = ['id', 'created_at'] 
+        read_only_fields = ['id', 'created_at']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer for the dashboard notification center"""
+    class Meta:
+        model = Notification
+        fields = ['id', 'notification_type', 'title', 'message', 'is_read', 'created_at']
+        read_only_fields = ['id', 'notification_type', 'title', 'message', 'created_at']

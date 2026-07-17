@@ -1,12 +1,14 @@
 from django.shortcuts import render
-from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
+from rest_framework import status, viewsets, mixins
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes, action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import ScopedRateThrottle
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.utils import timezone
+from django.views.decorators.cache import cache_page
 import os
 import json
 import tempfile
@@ -30,7 +32,7 @@ def _validate_upload(file_obj, allowed_extensions, label):
         return f"{label} has an unsupported file type '.{ext}'. Allowed types: {', '.join(sorted(allowed_extensions))}."
     return None
 
-from .models import Resume, JobDescription, ResumeAnalysis, ChatMessage, MockInterview, UserActivity, BookmarkedAnswer
+from .models import Resume, JobDescription, ResumeAnalysis, ChatMessage, MockInterview, UserActivity, BookmarkedAnswer, Notification
 from .serializers import (
     ResumeSerializer,
     JobDescriptionSerializer,
@@ -41,7 +43,8 @@ from .serializers import (
     InterviewFeedbackSerializer,
     ChatMessageSerializer,
     UserActivitySerializer,
-    BookmarkedAnswerSerializer
+    BookmarkedAnswerSerializer,
+    NotificationSerializer,
 )
 from .resume_analyzer import ResumeAnalyzer
 from .interview_analyzer import InterviewAnalyzer
@@ -64,7 +67,8 @@ def analyze_resume(request):
     """
     resume_file = request.FILES.get('resume_file')
     job_desc_file = request.FILES.get('job_desc_file')
-    
+    industry = request.data.get('industry') or None
+
     if not resume_file or not job_desc_file:
         return Response({
             'error': 'Both resume and job description files are required.'
@@ -90,8 +94,9 @@ def analyze_resume(request):
     
     # Analyze the resume against the job description
     analysis_result = analyzer.analyze_resume_and_job_description(
-        resume_text, 
-        job_desc_text
+        resume_text,
+        job_desc_text,
+        industry=industry
     )
     
     # Log the complete results for debugging
@@ -100,6 +105,10 @@ def analyze_resume(request):
     # Specifically check the sentiment analysis part
     sentiment_data = analysis_result.get('sentimentAnalysis', {})
     print("Sentiment Analysis data:", json.dumps(sentiment_data, default=str, indent=2))
+
+    # Include the extracted resume text so the frontend can render an inline
+    # diff of the suggested edits without re-uploading the file.
+    analysis_result['resumeText'] = resume_text
 
     # Persist the analysis for signed-in users so it shows up in their
     # history (via /api/resume/analyses/) instead of disappearing once the
@@ -120,7 +129,7 @@ def analyze_resume(request):
                 content=job_desc_text,
                 file_type=job_desc_file.name.split('.')[-1],
             )
-            ResumeAnalysis.objects.create(
+            saved_analysis = ResumeAnalysis.objects.create(
                 user=request.user,
                 resume=resume,
                 job_description=job_description,
@@ -130,6 +139,9 @@ def analyze_resume(request):
                 content_suggestions=analysis_result.get('contentSuggestions', []),
                 match_score=analysis_result.get('matchScore', 0),
             )
+            # Lets the frontend immediately offer a "Download tailored resume"
+            # button without a round trip through the analysis history list.
+            analysis_result['analysisId'] = saved_analysis.id
         except Exception as e:
             # Saving history is a convenience feature — never let a DB hiccup
             # break the analysis response the user is actively waiting on.
@@ -254,17 +266,20 @@ def interview_chat(request):
     try:
         user_message = request.data.get('message', '')
         session_id = request.data.get('session_id', '')
+        mode = request.data.get('mode', 'advice')  # 'advice' or 'reverse' (chatbot interviews you)
+        job_posting = request.data.get('job_posting', '') or None
+        want_follow_ups = bool(request.data.get('want_follow_ups', False))
         user_id = request.user.id if request.user.is_authenticated else None
-        
+
         if not user_message:
             return Response({
                 'error': 'Message is required.'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Generate a new session ID if none provided
         if not session_id:
             session_id = interview_chatbot.generate_session_id()
-        
+
         # Get previous messages in this session if user is authenticated
         previous_messages = []
         if user_id:
@@ -272,7 +287,7 @@ def interview_chat(request):
                 user_id=user_id,
                 session_id=session_id
             ).order_by('timestamp')
-        
+
         # Save the user message if user is authenticated
         if user_id:
             user_chat_message = ChatMessage.objects.create(
@@ -281,12 +296,14 @@ def interview_chat(request):
                 is_user=True,
                 session_id=session_id
             )
-        
+
         # Get response from the chatbot with better error handling
         print(f"Sending message to Groq: '{user_message}'")
-        bot_response = interview_chatbot.get_response(user_message, previous_messages)
+        bot_response = interview_chatbot.get_response(
+            user_message, previous_messages, mode=mode, job_posting=job_posting
+        )
         print(f"Received response from Groq: '{bot_response}'")
-        
+
         # Save the bot response if user is authenticated
         if user_id:
             bot_chat_message = ChatMessage.objects.create(
@@ -295,12 +312,30 @@ def interview_chat(request):
                 is_user=False,
                 session_id=session_id
             )
-        
+
+        follow_up_questions = []
+        if want_follow_ups:
+            follow_up_questions = interview_chatbot.get_follow_up_questions(user_message, bot_response)
+
+        # Lightweight usage-quota indicator mirroring the 'interview_chat'
+        # throttle scope's own 30/minute limit (see settings.DEFAULT_THROTTLE_RATES),
+        # so the frontend can show "X messages left this minute" without
+        # reaching into DRF's internal throttle cache format.
+        from django.core.cache import cache
+        quota_ident = f"user_{user_id}" if user_id else f"ip_{request.META.get('REMOTE_ADDR', 'unknown')}"
+        quota_key = f"interview_chat_quota:{quota_ident}"
+        quota_count = cache.get(quota_key, 0) + 1
+        cache.set(quota_key, quota_count, timeout=60)
+        quota_limit = 30
+        quota_remaining = max(0, quota_limit - quota_count)
+
         return Response({
             'message': bot_response,
-            'session_id': session_id
+            'session_id': session_id,
+            'follow_up_questions': follow_up_questions,
+            'quota': {'limit': quota_limit, 'remaining': quota_remaining, 'resets_in_seconds': 60},
         }, status=status.HTTP_200_OK)
-    
+
     except Exception as e:
         print(f"Error in interview_chat view: {str(e)}")
         return Response({
@@ -379,6 +414,7 @@ def get_chat_sessions(request):
     
     return Response(session_data, status=status.HTTP_200_OK)
 
+@cache_page(60 * 60)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_faq_topics(request):
@@ -601,6 +637,9 @@ def save_interview_attempt(request):
     transcript = request.data.get('transcript', '')
     duration = request.data.get('duration', 0)
     overall_score = request.data.get('overall_score', 0)
+    difficulty = request.data.get('difficulty', 'mid')
+    question_text = request.data.get('question_text', '')
+    session_id = request.data.get('session_id', '')
 
     try:
         overall_score = int(overall_score)
@@ -608,16 +647,36 @@ def save_interview_attempt(request):
     except (TypeError, ValueError):
         return Response({'error': 'overall_score and duration must be numeric.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    if difficulty not in dict(MockInterview.DIFFICULTY_CHOICES):
+        difficulty = 'mid'
+
     mock_interview = MockInterview.objects.create(
         user=request.user,
         title=title,
         transcript=transcript,
         duration=duration,
         overall_score=overall_score,
+        difficulty=difficulty,
+        question_text=question_text,
+        session_id=session_id,
         audio_analysis=request.data.get('audio_analysis', {}) or {},
         content_analysis=request.data.get('content_analysis', {}) or {},
         feedback=request.data.get('feedback', {}) or {},
     )
+
+    # Achievement-style notification for a new personal best score.
+    previous_best = (
+        MockInterview.objects.filter(user=request.user)
+        .exclude(id=mock_interview.id)
+        .order_by('-overall_score')
+        .values_list('overall_score', flat=True)
+        .first()
+    )
+    if previous_best is not None and overall_score > previous_best:
+        notify_user(
+            request.user, 'achievement', 'New personal best!',
+            f"You scored {overall_score} on your latest mock interview, beating your previous best of {previous_best}."
+        )
 
     return Response(MockInterviewSerializer(mock_interview).data, status=status.HTTP_201_CREATED)
 
@@ -633,3 +692,331 @@ class BookmarkedAnswerViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class NotificationViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Notification center backing the dashboard bell icon (streaks,
+    achievements, digest summaries). Read-mostly from the frontend's
+    perspective — creation happens server-side (see notify_user below),
+    never via a POST from the client (this viewset has no create route).
+    """
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return Notification.objects.filter(user=user)
+        return Notification.objects.none()
+
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        self.get_queryset().filter(is_read=False).update(is_read=True)
+        return Response({'detail': 'All notifications marked as read.'}, status=status.HTTP_200_OK)
+
+
+def notify_user(user, notification_type, title, message):
+    """Create an in-app notification, respecting the user's per-type opt-out preferences."""
+    pref_field = {
+        'achievement': 'notify_achievement_alerts',
+        'streak': 'notify_streak_reminders',
+        'digest': 'notify_progress_digest',
+    }.get(notification_type)
+    if pref_field and not getattr(user.profile, pref_field, True):
+        return None
+    return Notification.objects.create(
+        user=user, notification_type=notification_type, title=title, message=message
+    )
+
+
+@cache_page(60 * 60)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def keyword_libraries(request):
+    """Industry-specific keyword libraries available for resume analysis."""
+    from .keyword_libraries import INDUSTRY_KEYWORDS
+    return Response({
+        'industries': [
+            {'id': key, 'label': key.title(), 'keywords': keywords}
+            for key, keywords in INDUSTRY_KEYWORDS.items()
+        ]
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def download_tailored_resume(request, analysis_id):
+    """
+    Reconstruct a downloadable .docx from the original resume text plus the
+    analysis's suggestions — the original content stays intact and untouched
+    (so nothing is silently rewritten wrong), with a clearly labeled
+    "Tailoring Suggestions" section appended covering keywords to add,
+    content suggestions, and formatting fixes to apply by hand.
+    """
+    import io
+    import docx
+    from django.http import FileResponse
+
+    try:
+        analysis = ResumeAnalysis.objects.select_related('resume', 'job_description').get(
+            id=analysis_id, user=request.user
+        )
+    except ResumeAnalysis.DoesNotExist:
+        return Response({'error': 'Analysis not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    document = docx.Document()
+    document.add_heading(analysis.resume.title or 'Tailored Resume', level=1)
+    document.add_paragraph(f"Tailored for: {analysis.job_description.title}")
+    document.add_paragraph(f"Match score: {analysis.match_score}%")
+    document.add_paragraph('')
+
+    document.add_heading('Original Resume Content', level=2)
+    for line in analysis.resume.content.splitlines():
+        document.add_paragraph(line if line.strip() else '')
+
+    document.add_page_break()
+    document.add_heading('Tailoring Suggestions to Apply', level=2)
+
+    if analysis.keywords_to_add:
+        document.add_heading('Keywords to Add', level=3)
+        for kw in analysis.keywords_to_add:
+            document.add_paragraph(kw, style='List Bullet')
+
+    if analysis.keywords_to_remove:
+        document.add_heading('Keywords to Reconsider Removing', level=3)
+        for kw in analysis.keywords_to_remove:
+            document.add_paragraph(kw, style='List Bullet')
+
+    if analysis.content_suggestions:
+        document.add_heading('Content Suggestions', level=3)
+        for suggestion in analysis.content_suggestions:
+            document.add_paragraph(suggestion, style='List Bullet')
+
+    if analysis.format_suggestions:
+        document.add_heading('Formatting Suggestions', level=3)
+        for suggestion in analysis.format_suggestions:
+            document.add_paragraph(suggestion, style='List Bullet')
+
+    buffer = io.BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+
+    filename = f"tailored-{(analysis.resume.title or 'resume').replace(' ', '-')}.docx"
+    return FileResponse(
+        buffer, as_attachment=True, filename=filename,
+        content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_share_link(request, interview_id):
+    """Generate (or return the existing) shareable read-only link for a mock interview attempt."""
+    try:
+        interview = MockInterview.objects.get(id=interview_id, user=request.user)
+    except MockInterview.DoesNotExist:
+        return Response({'error': 'Mock interview not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not interview.share_token:
+        interview.share_token = uuid.uuid4()
+        interview.save(update_fields=['share_token'])
+
+    return Response({'share_token': str(interview.share_token)}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def shared_interview_view(request, share_token):
+    """Public, read-only view of a mock interview attempt's feedback — for sharing with a mentor."""
+    try:
+        interview = MockInterview.objects.get(share_token=share_token)
+    except (MockInterview.DoesNotExist, ValueError):
+        return Response({'error': 'This share link is invalid or has expired.'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({
+        'title': interview.title,
+        'difficulty': interview.difficulty,
+        'question_text': interview.question_text,
+        'transcript': interview.transcript,
+        'overall_score': interview.overall_score,
+        'feedback': interview.feedback,
+        'created_at': interview.created_at,
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([ScopedRateThrottle])
+def adaptive_follow_up(request):
+    """Generate one adaptive follow-up question probing deeper into the candidate's last answer."""
+    question = request.data.get('question', '')
+    transcript = request.data.get('transcript', '')
+    if not question or not transcript:
+        return Response({'error': 'question and transcript are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    follow_up = interview_chatbot.get_adaptive_follow_up(question, transcript)
+    return Response({'follow_up_question': follow_up}, status=status.HTTP_200_OK)
+
+adaptive_follow_up.cls.throttle_scope = 'interview_chat'
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def question_score_trend(request):
+    """
+    Score trend for repeated attempts at the same question — powers the
+    "have I improved on this specific question?" chart in interview history.
+    Only questions attempted 2+ times are returned (a trend needs >1 point).
+    """
+    from django.db.models import Count
+
+    interviews = (
+        MockInterview.objects.filter(user=request.user)
+        .exclude(question_text='')
+        .order_by('question_text', 'created_at')
+    )
+
+    by_question = {}
+    for interview in interviews:
+        by_question.setdefault(interview.question_text, []).append({
+            'id': interview.id,
+            'score': interview.overall_score,
+            'created_at': interview.created_at,
+        })
+
+    trends = [
+        {'question_text': question, 'attempts': attempts}
+        for question, attempts in by_question.items()
+        if len(attempts) >= 2
+    ]
+    trends.sort(key=lambda t: len(t['attempts']), reverse=True)
+
+    return Response({'trends': trends}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def leaderboard(request):
+    """
+    Opt-in, anonymized leaderboard of best mock-interview scores. Only users
+    with profile.leaderboard_opt_in=True are included — everyone else is
+    invisible to this endpoint entirely, not just unranked. Usernames are
+    masked (first 2 chars + asterisks) since this is meant to be a fun,
+    low-stakes comparison, not a public identity list.
+    """
+    from django.db.models import Max
+    from users.models import Profile
+
+    opted_in_user_ids = Profile.objects.filter(leaderboard_opt_in=True).values_list('user_id', flat=True)
+    best_scores = (
+        MockInterview.objects.filter(user_id__in=opted_in_user_ids)
+        .values('user_id', 'user__username')
+        .annotate(best_score=Max('overall_score'))
+        .order_by('-best_score')[:20]
+    )
+
+    def mask(username):
+        return (username[:2] + '*' * max(0, len(username) - 2)) if username else 'Anonymous'
+
+    entries = [
+        {
+            'rank': i + 1,
+            'display_name': mask(row['user__username']),
+            'best_score': row['best_score'],
+            'is_you': row['user_id'] == request.user.id,
+        }
+        for i, row in enumerate(best_scores)
+    ]
+
+    return Response({'entries': entries, 'you_opted_in': request.user.id in set(opted_in_user_ids)}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def benchmark(request):
+    """
+    Anonymized comparison of the current user's average mock-interview and
+    resume-match scores against the platform-wide average. Unlike the
+    leaderboard, this doesn't require opting in — it only ever reveals an
+    aggregate average, never another individual's score.
+    """
+    from django.db.models import Avg
+
+    user_interview_avg = MockInterview.objects.filter(user=request.user).aggregate(avg=Avg('overall_score'))['avg']
+    platform_interview_avg = MockInterview.objects.aggregate(avg=Avg('overall_score'))['avg']
+
+    user_resume_avg = ResumeAnalysis.objects.filter(user=request.user).aggregate(avg=Avg('match_score'))['avg']
+    platform_resume_avg = ResumeAnalysis.objects.aggregate(avg=Avg('match_score'))['avg']
+
+    def round_or_none(value):
+        return round(value, 1) if value is not None else None
+
+    return Response({
+        'mock_interview': {
+            'your_average': round_or_none(user_interview_avg),
+            'platform_average': round_or_none(platform_interview_avg),
+        },
+        'resume_match': {
+            'your_average': round_or_none(user_resume_avg),
+            'platform_average': round_or_none(platform_resume_avg),
+        },
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def next_best_action(request):
+    """
+    A single, personalized "what should I do next" suggestion for the
+    dashboard, derived from simple rules over the user's own data — no ML,
+    just prioritized heuristics so the suggestion is always explainable.
+    """
+    user = request.user
+    resume_count = Resume.objects.filter(user=user).count()
+    interview_count = MockInterview.objects.filter(user=user).count()
+    latest_analysis = ResumeAnalysis.objects.filter(user=user).order_by('-created_at').first()
+    last_activity = UserActivity.objects.filter(user=user).order_by('-created_at').first()
+
+    if resume_count == 0:
+        action = {
+            'title': 'Upload your first resume',
+            'description': 'Get tailored suggestions by analyzing your resume against a job description.',
+            'cta_label': 'Analyze a resume',
+            'cta_path': '/resume',
+        }
+    elif latest_analysis and latest_analysis.match_score < 70:
+        action = {
+            'title': 'Improve your resume match score',
+            'description': f"Your latest resume scored {latest_analysis.match_score}% against the job description. Apply the suggested keywords to boost it.",
+            'cta_label': 'View suggestions',
+            'cta_path': '/resume',
+        }
+    elif interview_count == 0:
+        action = {
+            'title': 'Try a mock interview',
+            'description': 'Practice answering real interview questions and get instant feedback.',
+            'cta_label': 'Start mock interview',
+            'cta_path': '/mock-interview',
+        }
+    elif last_activity is None or (timezone.now() - last_activity.created_at).days >= 3:
+        action = {
+            'title': "You've been away — jump back in",
+            'description': 'Keep your streak going with a quick mock interview or chatbot session.',
+            'cta_label': 'Practice now',
+            'cta_path': '/mock-interview',
+        }
+    else:
+        action = {
+            'title': 'Explore the AI Career Tools',
+            'description': 'Try the elevator pitch generator, salary negotiation coach, or skill-gap analyzer.',
+            'cta_label': 'Open AI Tools',
+            'cta_path': '/ai-tools',
+        }
+
+    return Response(action, status=status.HTTP_200_OK)

@@ -54,6 +54,10 @@ export interface MockInterview {
   duration: number;
   overall_score: number;
   created_at: string;
+  difficulty?: string;
+  question_text?: string;
+  session_id?: string;
+  share_token?: string | null;
   job_description?: {
     id: number;
     title: string;
@@ -147,11 +151,69 @@ export const saveInterviewAttempt = async (attempt: {
   audio_analysis?: object;
   content_analysis?: object;
   feedback?: object;
-}): Promise<void> => {
+  difficulty?: string;
+  question_text?: string;
+  session_id?: string;
+}): Promise<MockInterview | null> => {
   try {
-    await axios.post(`${API_BASE_URL}/api/resume/save-interview-attempt/`, attempt);
+    const response = await axios.post<MockInterview>(`${API_BASE_URL}/api/resume/save-interview-attempt/`, attempt);
+    return response.data;
   } catch (error) {
     console.error('Error saving interview attempt:', error);
+    return null;
+  }
+};
+
+/** Generate (or fetch the existing) shareable read-only link for an attempt. */
+export const generateShareLink = async (interviewId: number): Promise<string> => {
+  const response = await axios.post<{ share_token: string }>(
+    `${API_BASE_URL}/api/resume/mock-interviews/${interviewId}/share/`
+  );
+  return response.data.share_token;
+};
+
+export interface SharedInterview {
+  title: string;
+  difficulty: string;
+  question_text: string;
+  transcript: string;
+  overall_score: number;
+  feedback: Record<string, unknown>;
+  created_at: string;
+}
+
+export const getSharedInterview = async (shareToken: string): Promise<SharedInterview> => {
+  const response = await axios.get<SharedInterview>(`${API_BASE_URL}/api/resume/shared-interview/${shareToken}/`);
+  return response.data;
+};
+
+export interface QuestionScoreTrend {
+  question_text: string;
+  attempts: { id: number; score: number; created_at: string }[];
+}
+
+export const getQuestionScoreTrend = async (): Promise<QuestionScoreTrend[]> => {
+  try {
+    const response = await axios.get<{ trends: QuestionScoreTrend[] }>(
+      `${API_BASE_URL}/api/resume/question-score-trend/`
+    );
+    return response.data.trends;
+  } catch (error) {
+    console.error('Error fetching question score trend:', error);
+    return [];
+  }
+};
+
+export const generateAdaptiveFollowUp = async (question: string, transcript: string): Promise<string | null> => {
+  try {
+    const response = await axios.post<{ follow_up_question: string }>(
+      `${API_BASE_URL}/api/resume/adaptive-follow-up/`,
+      { question, transcript }
+    );
+    return response.data.follow_up_question;
+  } catch (error) {
+    console.error('Error generating adaptive follow-up:', error);
+    return null;
   }
 };
 

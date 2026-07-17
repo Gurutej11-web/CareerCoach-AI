@@ -165,14 +165,17 @@ class ResumeAnalyzer:
             print(f"DOCX extraction error: {str(e)}")
             return "Error: Could not extract text from the provided DOCX file."
     
-    def analyze_resume_and_job_description(self, resume_text, job_desc_text):
+    def analyze_resume_and_job_description(self, resume_text, job_desc_text, industry=None):
         """
         Analyze a resume against a job description and provide tailoring suggestions.
-        
+
         Args:
             resume_text (str): The text content of the resume
             job_desc_text (str): The text content of the job description
-            
+            industry (str, optional): An industry key (e.g. "technology", "finance")
+                whose keyword library is used to catch domain terms the
+                generic key-phrase extraction misses.
+
         Returns:
             dict: A dictionary containing analysis results and suggestions
         """
@@ -211,6 +214,21 @@ class ResumeAnalyzer:
         
         # Combine all missing keywords
         keywords_to_add = missing_technical_skills + missing_soft_skills
+
+        # Industry keyword library: catch domain terms that are present in
+        # the job description and absent from the resume, but that the
+        # generic key-phrase extraction above didn't surface as a "skill".
+        industry_keywords_matched = []
+        if industry:
+            from .keyword_libraries import get_keywords_for_industry
+            job_desc_lower = job_desc_text.lower()
+            resume_lower = resume_text.lower()
+            for term in get_keywords_for_industry(industry):
+                if term.lower() in job_desc_lower and term.lower() not in resume_lower:
+                    industry_keywords_matched.append(term)
+            for term in industry_keywords_matched:
+                if not self._has_similar_term(term, keywords_to_add):
+                    keywords_to_add.append(term)
         
         # Find keywords in the resume that are not relevant to the job description
         keywords_to_remove = [skill for skill in technical_skills_in_resume 
@@ -249,7 +267,8 @@ class ResumeAnalyzer:
                 "missing": missing_soft_skills
             },
             "sentimentAnalysis": sentiment_analysis,
-            "readability": readability
+            "readability": readability,
+            "industryKeywordsMatched": industry_keywords_matched
         }
     
     def _generate_error_response(self, resume_text, job_desc_text):

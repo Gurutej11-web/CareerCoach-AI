@@ -29,7 +29,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Alert
 } from '@mui/material';
 import { 
   Mic as MicIcon,
@@ -45,7 +46,12 @@ import {
   Refresh as RefreshIcon,
   Download as DownloadIcon
 } from '@mui/icons-material';
-import { InterviewAnalysisResult, saveInterviewAttempt } from '../../services/interviewService';
+import {
+  InterviewAnalysisResult,
+  saveInterviewAttempt,
+  generateShareLink,
+  generateAdaptiveFollowUp,
+} from '../../services/interviewService';
 import { initSpeechRecognition } from '../../services/azureSpeechService';
 import { analyzeTranscript } from '../../services/clientAnalysisService';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
@@ -53,22 +59,68 @@ import { useAuth } from '../../contexts/AuthContext';
 import { generateInterviewReportPdf } from '../../utils/pdfReport';
 import { useNotification } from '../../contexts/NotificationContext';
 import InterviewHistory from './InterviewHistory';
-import { QUESTION_BANKS, getQuestionBank } from '../../constants/interviewQuestionBanks';
+import {
+  QUESTION_BANKS,
+  getQuestionBank,
+  getQuestionsForDifficulty,
+  DIFFICULTY_LEVELS,
+  InterviewDifficulty,
+} from '../../constants/interviewQuestionBanks';
 
 // Interview feedback component
-const InterviewFeedback: React.FC<{ 
-  analysis: InterviewAnalysisResult | null; 
+const InterviewFeedback: React.FC<{
+  analysis: InterviewAnalysisResult | null;
   transcript: string;
+  question?: string;
+  interviewId?: number | null;
+  isAuthenticated?: boolean;
   onRestart?: () => void;
-}> = ({ analysis, transcript, onRestart }) => {
+  onFollowUpGenerated?: (followUp: string) => void;
+}> = ({ analysis, transcript, question, interviewId, isAuthenticated, onRestart, onFollowUpGenerated }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { notify } = useNotification();
+  const [shareUrl, setShareUrl] = useState<string>('');
+  const [sharing, setSharing] = useState(false);
+  const [generatingFollowUp, setGeneratingFollowUp] = useState(false);
 
   const handleDownloadReport = () => {
     if (!analysis) return;
     generateInterviewReportPdf(analysis, transcript);
     notify('Report downloaded', 'success');
+  };
+
+  const handleShare = async () => {
+    if (!interviewId) return;
+    setSharing(true);
+    try {
+      const token = await generateShareLink(interviewId);
+      const url = `${window.location.origin}/shared-interview/${token}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url).catch(() => {});
+      notify('Shareable link copied to clipboard', 'success');
+    } catch (err) {
+      console.error('Error generating share link:', err);
+      notify('Failed to generate a shareable link.', 'error');
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleGenerateFollowUp = async () => {
+    if (!question || !transcript) return;
+    setGeneratingFollowUp(true);
+    try {
+      const followUp = await generateAdaptiveFollowUp(question, transcript);
+      if (followUp) {
+        onFollowUpGenerated?.(followUp);
+        notify('Follow-up question added — answer it next!', 'success');
+      } else {
+        notify('Could not generate a follow-up question right now.', 'error');
+      }
+    } finally {
+      setGeneratingFollowUp(false);
+    }
   };
 
   useEffect(() => {
@@ -268,9 +320,37 @@ const InterviewFeedback: React.FC<{
             >
               Download PDF
             </Button>
+            {isAuthenticated && interviewId && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleShare}
+                disabled={sharing}
+                sx={{ ml: 1 }}
+              >
+                {sharing ? 'Sharing…' : 'Share with mentor'}
+              </Button>
+            )}
+            {question && transcript && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleGenerateFollowUp}
+                disabled={generatingFollowUp}
+                sx={{ ml: 1 }}
+              >
+                {generatingFollowUp ? 'Thinking…' : 'Ask a follow-up'}
+              </Button>
+            )}
           </Box>
         </Box>
-        
+
+        {shareUrl && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setShareUrl('')}>
+            Shareable link (copied to clipboard): {shareUrl}
+          </Alert>
+        )}
+
         {/* Audio Playback Controls */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
@@ -414,12 +494,15 @@ const MockInterviewPage: React.FC = () => {
   
   // State for custom job title and questions
   const [questionBankId, setQuestionBankId] = useState<string>('general');
+  const [difficulty, setDifficulty] = useState<InterviewDifficulty>('mid');
   const [questions, setQuestions] = useState<string[]>(
-    getQuestionBank('general')?.questions ?? [
-      'Tell me about yourself.',
-      'How do you approach debugging a complex issue?',
-      'What are your greatest strengths?'
-    ]
+    getQuestionsForDifficulty('general', 'mid').length > 0
+      ? getQuestionsForDifficulty('general', 'mid')
+      : [
+          'Tell me about yourself.',
+          'How do you approach debugging a complex issue?',
+          'What are your greatest strengths?'
+        ]
   );
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [showQuestionDialog, setShowQuestionDialog] = useState<boolean>(false);
@@ -442,6 +525,15 @@ const MockInterviewPage: React.FC = () => {
   const { addActivity } = useRecentActivity();
   const { isAuthenticated } = useAuth();
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  // Groups every question answered during this page visit into one "full
+  // session" for a combined report, and tracks the id of the most recently
+  // saved attempt (needed to generate its shareable link).
+  const sessionIdRef = useRef<string>(
+    (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `session-${Date.now()}`
+  );
+  const [savedInterviewId, setSavedInterviewId] = useState<number | null>(null);
+  const [sessionAttempts, setSessionAttempts] = useState<{ question: string; score: number }[]>([]);
 
   // Initialize component
   useEffect(() => {
@@ -647,7 +739,7 @@ const MockInterviewPage: React.FC = () => {
       );
 
       if (isAuthenticated && typeof score === 'number') {
-        await saveInterviewAttempt({
+        const saved = await saveInterviewAttempt({
           title: questions[currentQuestionIndex],
           transcript,
           duration: recordingDuration || 0,
@@ -655,7 +747,12 @@ const MockInterviewPage: React.FC = () => {
           audio_analysis: result.audio_analysis,
           content_analysis: result.content_analysis,
           feedback: result.feedback,
+          difficulty,
+          question_text: questions[currentQuestionIndex],
+          session_id: sessionIdRef.current,
         });
+        setSavedInterviewId(saved?.id ?? null);
+        setSessionAttempts((prev) => [...prev, { question: questions[currentQuestionIndex], score }]);
         setHistoryRefreshKey((k) => k + 1);
       }
     } catch (error) {
@@ -729,7 +826,14 @@ const MockInterviewPage: React.FC = () => {
     const bank = getQuestionBank(bankId);
     if (!bank) return;
     setQuestionBankId(bankId);
-    setQuestions(bank.questions);
+    setQuestions(bank.questionsByDifficulty[difficulty]);
+    setCurrentQuestionIndex(0);
+  };
+
+  // Swap the active question set's difficulty while keeping the same category
+  const handleDifficultyChange = (newDifficulty: InterviewDifficulty) => {
+    setDifficulty(newDifficulty);
+    setQuestions(getQuestionsForDifficulty(questionBankId, newDifficulty));
     setCurrentQuestionIndex(0);
   };
   
@@ -743,6 +847,15 @@ const MockInterviewPage: React.FC = () => {
     setAudioUrl('');
     setAnalysisResult(null);
     setError('');
+    setSavedInterviewId(null);
+  };
+
+  // A generated adaptive follow-up gets appended to the question list and
+  // becomes the next question to answer, keeping the same recording flow.
+  const handleFollowUpGenerated = (followUp: string) => {
+    setQuestions((prev) => [...prev, followUp]);
+    setCurrentQuestionIndex(questions.length);
+    handleRestartInterview();
   };
   
   // Which step to highlight: pick a question -> record -> review feedback
@@ -773,20 +886,38 @@ const MockInterviewPage: React.FC = () => {
                 Practice Interview
               </Typography>
 
-              <FormControl size="small" fullWidth sx={{ mb: 2 }}>
-                <InputLabel id="question-bank-label">Question category</InputLabel>
-                <Select
-                  labelId="question-bank-label"
-                  label="Question category"
-                  value={questionBankId}
-                  disabled={isRecording}
-                  onChange={(e: SelectChangeEvent) => handleQuestionBankChange(e.target.value)}
-                >
-                  {QUESTION_BANKS.map((bank) => (
-                    <MenuItem key={bank.id} value={bank.id}>{bank.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="question-bank-label">Question category</InputLabel>
+                  <Select
+                    labelId="question-bank-label"
+                    label="Question category"
+                    value={questionBankId}
+                    disabled={isRecording}
+                    onChange={(e: SelectChangeEvent) => handleQuestionBankChange(e.target.value)}
+                  >
+                    {QUESTION_BANKS.map((bank) => (
+                      <MenuItem key={bank.id} value={bank.id}>{bank.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="difficulty-label">Difficulty</InputLabel>
+                  <Select
+                    labelId="difficulty-label"
+                    label="Difficulty"
+                    value={difficulty}
+                    disabled={isRecording}
+                    onChange={(e: SelectChangeEvent) => handleDifficultyChange(e.target.value as InterviewDifficulty)}
+                  >
+                    {DIFFICULTY_LEVELS.map((level) => (
+                      <Tooltip key={level.id} title={level.description} placement="right">
+                        <MenuItem value={level.id}>{level.label}</MenuItem>
+                      </Tooltip>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
 
               <Paper elevation={1} sx={{ p: 2, mb: 3, backgroundColor: 'background.default', borderLeft: '4px solid', borderColor: 'primary.main' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -1022,13 +1153,37 @@ const MockInterviewPage: React.FC = () => {
         </Grid>
         
         <Grid item xs={12} md={6}>
-          <InterviewFeedback 
-            analysis={analysisResult} 
-            transcript={transcript} 
+          <InterviewFeedback
+            analysis={analysisResult}
+            transcript={transcript}
+            question={questions[currentQuestionIndex]}
+            interviewId={savedInterviewId}
+            isAuthenticated={isAuthenticated}
             onRestart={handleRestartInterview}
+            onFollowUpGenerated={handleFollowUpGenerated}
           />
         </Grid>
       </Grid>
+
+      {sessionAttempts.length >= 2 && (
+        <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
+          <Typography variant="h6" gutterBottom fontWeight="bold">
+            Session Report ({sessionAttempts.length} questions answered)
+          </Typography>
+          <List dense>
+            {sessionAttempts.map((attempt, index) => (
+              <ListItem key={index}>
+                <ListItemText primary={attempt.question} secondary={`Score: ${attempt.score}/100`} />
+              </ListItem>
+            ))}
+          </List>
+          <Divider sx={{ my: 1 }} />
+          <Typography variant="subtitle1" fontWeight="bold">
+            Average score this session:{' '}
+            {Math.round(sessionAttempts.reduce((sum, a) => sum + a.score, 0) / sessionAttempts.length)}/100
+          </Typography>
+        </Paper>
+      )}
 
       {isAuthenticated && (
         <Box sx={{ mt: 4 }}>

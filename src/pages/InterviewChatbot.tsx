@@ -13,6 +13,11 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  ToggleButtonGroup,
+  ToggleButton,
+  Collapse,
+  Chip,
+  Stack,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -26,6 +31,7 @@ import {
   Star as StarIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
+  Work as WorkIcon,
 } from '@mui/icons-material';
 import { sendChatMessage, getChatbotFAQTopics, getChatSessions, getChatHistory, ChatSession } from '../services/resumeService';
 import { fetchBookmarks, createBookmark, deleteBookmark, BookmarkedAnswer } from '../services/bookmarkService';
@@ -70,6 +76,11 @@ const InterviewChatbot: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [bookmarks, setBookmarks] = useState<BookmarkedAnswer[]>([]);
+  const [chatMode, setChatMode] = useState<'advice' | 'reverse'>('advice');
+  const [showJobPosting, setShowJobPosting] = useState(false);
+  const [jobPosting, setJobPosting] = useState('');
+  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+  const [quota, setQuota] = useState<{ limit: number; remaining: number } | null>(null);
 
   const { addActivity } = useRecentActivity();
   const { isAuthenticated } = useAuth();
@@ -213,6 +224,7 @@ const InterviewChatbot: React.FC = () => {
     setInputValue('');
     setIsTyping(true);
     setIsLoading(true);
+    setFollowUpQuestions([]);
 
     try {
       // Record this activity in recent activities
@@ -222,13 +234,17 @@ const InterviewChatbot: React.FC = () => {
       );
 
       // Send to backend and get response
-      const response = await sendChatMessage(text, sessionId);
-      
+      const response = await sendChatMessage(text, sessionId, {
+        mode: chatMode,
+        jobPosting: showJobPosting ? jobPosting : undefined,
+        wantFollowUps: true,
+      });
+
       // Update session ID if returned from backend
       if (response.session_id) {
         setSessionId(response.session_id);
       }
-      
+
       // Add bot response to messages
       const botMessage: Message = {
         id: messages.length + 2,
@@ -236,8 +252,12 @@ const InterviewChatbot: React.FC = () => {
         sender: 'bot',
         timestamp: new Date(),
       };
-      
+
       setMessages(prev => [...prev, botMessage]);
+      setFollowUpQuestions(response.follow_up_questions || []);
+      if (response.quota) {
+        setQuota({ limit: response.quota.limit, remaining: response.quota.remaining });
+      }
       loadSessions();
     } catch (error) {
       console.error('Error getting response from chatbot:', error);
@@ -316,6 +336,43 @@ const InterviewChatbot: React.FC = () => {
             )}
           </Box>
         </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+          <ToggleButtonGroup
+            value={chatMode}
+            exclusive
+            size="small"
+            onChange={(_, value) => value && setChatMode(value)}
+          >
+            <ToggleButton value="advice">Get advice</ToggleButton>
+            <ToggleButton value="reverse">Chatbot interviews you</ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            size="small"
+            startIcon={<WorkIcon />}
+            onClick={() => setShowJobPosting((v) => !v)}
+            variant={showJobPosting ? 'contained' : 'outlined'}
+          >
+            {showJobPosting ? 'Job posting mode on' : 'Tailor to a job posting'}
+          </Button>
+          {quota && (
+            <Typography variant="caption" color="text.secondary">
+              {quota.remaining}/{quota.limit} messages left this minute
+            </Typography>
+          )}
+        </Box>
+
+        <Collapse in={showJobPosting}>
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            placeholder="Paste the job posting here — every answer will be tailored to it."
+            value={jobPosting}
+            onChange={(e) => setJobPosting(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+        </Collapse>
 
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
@@ -454,11 +511,33 @@ const InterviewChatbot: React.FC = () => {
                 </List>
               </Box>
               
+              {/* Suggested follow-up questions */}
+              {followUpQuestions.length > 0 && (
+                <Box sx={{ px: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider', backgroundColor: 'white' }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    Suggested follow-ups:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {followUpQuestions.map((q, i) => (
+                      <Chip
+                        key={i}
+                        label={q}
+                        size="small"
+                        variant="outlined"
+                        clickable
+                        onClick={() => handleSendMessage(q)}
+                        sx={{ mb: 1 }}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
               {/* Input area */}
-              <Box 
-                sx={{ 
-                  p: 2, 
-                  borderTop: '1px solid', 
+              <Box
+                sx={{
+                  p: 2,
+                  borderTop: followUpQuestions.length > 0 ? 'none' : '1px solid',
                   borderColor: 'divider',
                   backgroundColor: 'white',
                   borderBottomLeftRadius: 8,

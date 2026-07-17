@@ -24,6 +24,8 @@ const AITools = lazy(() => import('./pages/AITools'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const SharedInterview = lazy(() => import('./pages/SharedInterview'));
+const PublicPortfolio = lazy(() => import('./pages/PublicPortfolio'));
 
 function RouteFallback() {
   return (
@@ -52,6 +54,8 @@ function AnimatedRoutes() {
           <Route path="/ai-tools" element={<AITools />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/shared-interview/:token" element={<SharedInterview />} />
+          <Route path="/portfolio/:slug" element={<PublicPortfolio />} />
           {/* Add more routes here as we create more pages */}
           <Route path="*" element={<NotFound />} />
         </Routes>

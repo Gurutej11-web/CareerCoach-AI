@@ -11,15 +11,6 @@ const ScoreProgressChart: React.FC = () => {
   const { activities, isLoading } = useRecentActivity();
   const theme = useTheme();
 
-  if (isLoading) {
-    return (
-      <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
-        <Skeleton variant="text" width={180} height={32} sx={{ mb: 2 }} />
-        <Skeleton variant="rounded" height={180} sx={{ borderRadius: 2 }} />
-      </Paper>
-    );
-  }
-
   const points = useMemo(() => {
     return activities
       .filter((a) => typeof a.score === 'number')
@@ -46,6 +37,15 @@ const ScoreProgressChart: React.FC = () => {
 
     return { line, area, coords };
   }, [points]);
+
+  if (isLoading) {
+    return (
+      <Paper elevation={2} sx={{ p: 3, mt: 4 }}>
+        <Skeleton variant="text" width={180} height={32} sx={{ mb: 2 }} />
+        <Skeleton variant="rounded" height={180} sx={{ borderRadius: 2 }} />
+      </Paper>
+    );
+  }
 
   return (
     <Paper elevation={2} sx={{ p: 3, mt: 4 }}>

@@ -16,8 +16,24 @@ class ProfileSerializer(serializers.ModelSerializer):
             'bio', 'location', 'birth_date', 'profile_picture', 'job_title', 'company', 'skills',
             'phone_number', 'goal_target_score', 'goal_target_interviews', 'email_verified',
             'upcoming_interview_date', 'upcoming_interview_label',
+            'career_goal', 'target_role', 'leaderboard_opt_in',
+            'portfolio_public', 'portfolio_slug',
+            'notify_achievement_alerts', 'notify_streak_reminders', 'notify_progress_digest',
         ]
         read_only_fields = ['email_verified']
+
+    def validate_portfolio_slug(self, value):
+        if not value:
+            return value
+        import re
+        if not re.match(r'^[a-z0-9-]+$', value):
+            raise serializers.ValidationError('Slug may only contain lowercase letters, numbers, and hyphens.')
+        qs = Profile.objects.filter(portfolio_slug__iexact=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('This portfolio URL is already taken.')
+        return value
 
 class RegisterSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)

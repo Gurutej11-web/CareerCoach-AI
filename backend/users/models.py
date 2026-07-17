@@ -33,6 +33,20 @@ class Profile(models.Model):
     # Verification is informational only (a dismissible banner) — it does not
     # gate login, so it can't lock anyone out of an account they already have.
     email_verified = models.BooleanField(default=False)
+    # Free-text career goal + target role shown on the profile page.
+    career_goal = models.TextField(max_length=1000, blank=True)
+    target_role = models.CharField(max_length=100, blank=True)
+    # Opt-in only: excluded from the leaderboard/benchmark until the user
+    # explicitly turns this on from their profile.
+    leaderboard_opt_in = models.BooleanField(default=False)
+    # Optional public, read-only portfolio page at /portfolio/<slug>.
+    portfolio_public = models.BooleanField(default=False)
+    portfolio_slug = models.SlugField(max_length=50, blank=True, null=True, unique=True)
+    # Granular notification preferences (all default on to match prior
+    # behavior for users who never visit the settings panel).
+    notify_achievement_alerts = models.BooleanField(default=True)
+    notify_streak_reminders = models.BooleanField(default=True)
+    notify_progress_digest = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,3 +63,27 @@ def create_user_profile(sender, instance, created, **kwargs):
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
+
+
+class AdminActionLog(models.Model):
+    """
+    Mirrors every django.contrib.admin change (django.contrib.admin.models.LogEntry)
+    into a dedicated, read-only audit trail, additionally capturing the
+    request IP — LogEntry alone doesn't record that. Populated by a signal
+    receiver in apps.py; never written to directly.
+    """
+    log_entry_id = models.PositiveIntegerField(unique=True)
+    actor_username = models.CharField(max_length=150)
+    action_flag = models.PositiveSmallIntegerField()  # 1=add, 2=change, 3=delete
+    content_type_name = models.CharField(max_length=100, blank=True)
+    object_id = models.CharField(max_length=255, blank=True, null=True)
+    object_repr = models.CharField(max_length=255)
+    change_message = models.TextField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.actor_username}: {self.object_repr} ({self.created_at:%Y-%m-%d %H:%M})"

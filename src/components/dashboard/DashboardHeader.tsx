@@ -13,6 +13,7 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from '../../contexts/AuthContext';
+import NotificationCenter from './NotificationCenter';
 
 interface DashboardHeaderProps {
   onToggleSidebar?: () => void;
@@ -97,6 +98,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onToggleSidebar }) =>
         <Box sx={{ flexGrow: 1 }} />
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {user && <NotificationCenter />}
           <Tooltip title={getUserDisplayName()}>
             <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }} aria-label="Open account menu">
               <Avatar alt={getUserDisplayName()} src="/images/avatar.svg" sx={{ bgcolor: 'primary.main' }}>

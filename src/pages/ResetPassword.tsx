@@ -6,6 +6,7 @@ import axios from 'axios';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Logo from '../components/common/Logo';
+import PasswordStrengthMeter from '../components/common/PasswordStrengthMeter';
 
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
 
@@ -80,6 +81,7 @@ const ResetPassword: React.FC = () => {
                     ),
                   }}
                 />
+                <PasswordStrengthMeter password={password} />
                 <TextField
                   fullWidth
                   label="Confirm new password"

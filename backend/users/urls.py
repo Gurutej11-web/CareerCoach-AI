@@ -22,4 +22,6 @@ urlpatterns = [
     path('api/sessions/', views.list_sessions, name='api-list-sessions'),
     path('api/sessions/revoke/', views.revoke_session, name='api-revoke-session'),
     path('api/sessions/revoke-all/', views.revoke_all_sessions, name='api-revoke-all-sessions'),
+    path('api/export-data/', views.export_data, name='api-export-data'),
+    path('api/portfolio/<slug:slug>/', views.public_portfolio, name='api-public-portfolio'),
 ]

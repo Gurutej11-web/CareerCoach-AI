@@ -16,6 +16,8 @@ import GoalsCard from './GoalsCard';
 import InterviewCountdown from './InterviewCountdown';
 import EmailVerificationBanner from './EmailVerificationBanner';
 import OnboardingTour from './OnboardingTour';
+import NextBestActionCard from './NextBestActionCard';
+import LeaderboardCard from './LeaderboardCard';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useRecentActivity } from '../../contexts/RecentActivityContext';
 import { generateProgressReportPdf } from '../../utils/pdfReport';
@@ -106,6 +108,8 @@ const DashboardContent: React.FC = () => {
           </Box>
         </Box>
 
+        <NextBestActionCard />
+
         <Box sx={{ mt: 2 }}>
           <StatsOverview />
         </Box>
@@ -137,6 +141,8 @@ const DashboardContent: React.FC = () => {
         <AchievementsPanel />
 
         <ActivityHeatmap />
+
+        <LeaderboardCard />
 
         <RecentActivity filter={debouncedSearch} />
       </Container>
