@@ -3,14 +3,22 @@ import { Box, Container, Typography, Link, Grid, IconButton, Stack, Divider } fr
 import { Link as RouterLink } from 'react-router-dom';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import Logo from '../common/Logo';
+import { useAuth } from '../../contexts/AuthContext';
 
-const productLinks = [
+const loggedOutProductLinks = [
   { label: 'Resume Tailoring', to: '/login' },
   { label: 'Mock Interviews', to: '/login' },
   { label: 'Chatbot', to: '/login' },
 ];
 
+const loggedInProductLinks = [
+  { label: 'Resume Tailoring', to: '/resume' },
+  { label: 'Mock Interviews', to: '/mock-interview' },
+  { label: 'Chatbot', to: '/chat' },
+];
+
 const Footer: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   return (
     <Box
       component="footer"
@@ -56,7 +64,7 @@ const Footer: React.FC = () => {
               Product
             </Typography>
             <Stack spacing={1}>
-              {productLinks.map((link) => (
+              {(isAuthenticated ? loggedInProductLinks : loggedOutProductLinks).map((link) => (
                 <Link
                   key={link.label}
                   component={RouterLink}
