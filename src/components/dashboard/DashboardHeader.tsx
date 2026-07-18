@@ -21,7 +21,7 @@ interface DashboardHeaderProps {
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onToggleSidebar }) => {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   // Get user initials or first letter of username
@@ -83,7 +83,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onToggleSidebar }) =>
         <Typography
           variant="h6"
           component={RouterLink}
-          to="/"
+          to={isAuthenticated ? '/dashboard' : '/'}
           sx={{
             textDecoration: 'none',
             color: 'inherit',

@@ -19,16 +19,24 @@ import MenuIcon from '@mui/icons-material/Menu';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useThemeMode } from '../../contexts/ThemeModeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import Logo from '../common/Logo';
 
-const navLinks = [
+const loggedOutNavLinks = [
   { label: 'Resume Tailoring', to: '/login' },
   { label: 'Mock Interviews', to: '/login' },
   { label: 'Chatbot', to: '/login' },
 ];
 
+const loggedInNavLinks = [
+  { label: 'Resume Tailoring', to: '/resume' },
+  { label: 'Mock Interviews', to: '/mock-interview' },
+  { label: 'Chatbot', to: '/chat' },
+];
+
 const Header: React.FC = () => {
   const { mode, toggleMode } = useThemeMode();
+  const { isAuthenticated } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [scrolled, setScrolled] = useState(false);
@@ -58,7 +66,7 @@ const Header: React.FC = () => {
         <Toolbar>
           <Box
             component={RouterLink}
-            to="/"
+            to={isAuthenticated ? '/dashboard' : '/'}
             sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
           >
             <Logo iconSize={30} fontSize={22} />
@@ -81,13 +89,18 @@ const Header: React.FC = () => {
             </>
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {navLinks.map((link) => (
+              {(isAuthenticated ? loggedInNavLinks : loggedOutNavLinks).map((link) => (
                 <Button key={link.label} color="inherit" component={RouterLink} to={link.to}>
                   {link.label}
                 </Button>
               ))}
-              <Button variant="contained" color="secondary" component={RouterLink} to="/login">
-                Login/Sign Up
+              <Button
+                variant="contained"
+                color="secondary"
+                component={RouterLink}
+                to={isAuthenticated ? '/dashboard' : '/login'}
+              >
+                {isAuthenticated ? 'Dashboard' : 'Login/Sign Up'}
               </Button>
               <Tooltip title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
                 <IconButton
@@ -111,13 +124,13 @@ const Header: React.FC = () => {
           </Box>
           <Divider />
           <List>
-            {navLinks.map((link) => (
+            {(isAuthenticated ? loggedInNavLinks : loggedOutNavLinks).map((link) => (
               <ListItemButton key={link.label} component={RouterLink} to={link.to}>
                 <ListItemText primary={link.label} />
               </ListItemButton>
             ))}
-            <ListItemButton component={RouterLink} to="/login">
-              <ListItemText primary="Login/Sign Up" />
+            <ListItemButton component={RouterLink} to={isAuthenticated ? '/dashboard' : '/login'}>
+              <ListItemText primary={isAuthenticated ? 'Dashboard' : 'Login/Sign Up'} />
             </ListItemButton>
           </List>
         </Box>
