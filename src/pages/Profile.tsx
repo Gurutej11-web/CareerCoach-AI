@@ -19,7 +19,9 @@ import {
   Switch,
   FormControlLabel,
   FormGroup,
+  IconButton,
 } from '@mui/material';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import Sidebar from '../components/dashboard/Sidebar';
 import ActiveSessions from '../components/profile/ActiveSessions';
@@ -27,7 +29,7 @@ import PasswordStrengthMeter from '../components/common/PasswordStrengthMeter';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { exportUserData } from '../services/profileService';
+import { exportUserData, uploadProfilePicture, removeProfilePicture } from '../services/profileService';
 import { useNotification } from '../contexts/NotificationContext';
 import { extractApiErrorMessage } from '../utils/apiError';
 
@@ -41,6 +43,7 @@ interface UserProfileData {
     email: string;
     first_name: string;
     last_name: string;
+    date_joined: string;
   };
   profile: {
     bio: string;
@@ -73,6 +76,7 @@ const Profile: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const { notify } = useNotification();
   const [exporting, setExporting] = useState(false);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -243,6 +247,36 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handlePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    setUploadingPicture(true);
+    try {
+      const updated = await uploadProfilePicture(file);
+      setProfileData((prev) => (prev ? { ...prev, profile: { ...prev.profile, ...updated } } : prev));
+      notify('Profile picture updated', 'success');
+    } catch (err: any) {
+      notify(extractApiErrorMessage(err, 'Failed to upload profile picture. Please try again.'), 'error');
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
+  const handleRemovePicture = async () => {
+    setUploadingPicture(true);
+    try {
+      const updated = await removeProfilePicture();
+      setProfileData((prev) => (prev ? { ...prev, profile: { ...prev.profile, ...updated } } : prev));
+      notify('Profile picture removed', 'success');
+    } catch (err: any) {
+      notify(extractApiErrorMessage(err, 'Failed to remove profile picture. Please try again.'), 'error');
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -363,10 +397,30 @@ const Profile: React.FC = () => {
           <Container maxWidth="md">
             <Paper elevation={3} sx={{ p: 4, mt: 3, mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Avatar
-                  src={profileData?.profile?.profile_picture || "/default-avatar.png"}
-                  sx={{ width: 100, height: 100, mr: 3 }}
-                />
+                <Box sx={{ position: 'relative', mr: 3 }}>
+                  <Avatar
+                    src={profileData?.profile?.profile_picture || "/default-avatar.png"}
+                    sx={{ width: 100, height: 100 }}
+                  />
+                  <IconButton
+                    component="label"
+                    size="small"
+                    disabled={uploadingPicture}
+                    aria-label="Change profile picture"
+                    sx={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      bgcolor: 'background.paper',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      '&:hover': { bgcolor: 'action.hover' },
+                    }}
+                  >
+                    {uploadingPicture ? <CircularProgress size={18} /> : <PhotoCameraIcon fontSize="small" />}
+                    <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={handlePictureChange} />
+                  </IconButton>
+                </Box>
                 <Box>
                   <Typography variant="h4" gutterBottom>
                     {loading ? 'Loading...' : `${formData.first_name} ${formData.last_name}`}
@@ -374,6 +428,14 @@ const Profile: React.FC = () => {
                   <Typography variant="body1" color="text.secondary">
                     {formData.username}
                   </Typography>
+                  {profileData?.user?.date_joined && (
+                    <Typography variant="body2" color="text.secondary">
+                      Member since {new Date(profileData.user.date_joined).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </Typography>
+                  )}
+                  <Button size="small" onClick={handleRemovePicture} disabled={uploadingPicture} sx={{ mt: 0.5, ml: -1 }}>
+                    Remove photo
+                  </Button>
                 </Box>
               </Box>
 
@@ -690,8 +752,13 @@ const Profile: React.FC = () => {
         <DialogTitle>Delete your account?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            This permanently deletes your account and everything tied to it. This action cannot be
-            undone. Enter your password to confirm.
+            This permanently deletes your account and everything tied to it — resumes, analyses, mock
+            interviews, chat history, and activity log. This action cannot be undone. If you'd like a copy
+            of your data first, use{' '}
+            <Button size="small" onClick={handleExportData} disabled={exporting || deleting} sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline' }}>
+              Export my data
+            </Button>{' '}
+            below before continuing. Enter your password to confirm.
           </DialogContentText>
           <TextField
             fullWidth

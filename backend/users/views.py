@@ -19,8 +19,9 @@ from .forms import ProfileForm
 from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 
 # Import serializers
@@ -130,8 +131,59 @@ def profile_api_view(request):
             errors.update(user_serializer.errors)
         if not profile_serializer.is_valid():
             errors.update(profile_serializer.errors)
-            
+
         return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+MAX_PROFILE_PICTURE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+ALLOWED_PROFILE_PICTURE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def profile_picture_view(request):
+    """
+    Upload (POST) or remove (DELETE, resets to the default avatar) the
+    authenticated user's profile picture. Kept separate from the main
+    profile_api_view PUT endpoint because that one sends nested JSON
+    (`{user: {...}, profile: {...}}`), which doesn't mix cleanly with a
+    multipart file upload.
+    """
+    profile = request.user.profile
+
+    if request.method == 'DELETE':
+        if profile.profile_picture and profile.profile_picture.name != 'users/default-profile.png':
+            profile.profile_picture.delete(save=False)
+        profile.profile_picture = 'users/default-profile.png'
+        profile.save()
+        return Response(ProfileSerializer(profile).data, status=status.HTTP_200_OK)
+
+    file_obj = request.FILES.get('profile_picture')
+    if not file_obj:
+        return Response({'error': 'A profile_picture file is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if file_obj.size > MAX_PROFILE_PICTURE_SIZE_BYTES:
+        return Response(
+            {'error': f'Image is too large ({file_obj.size // (1024 * 1024)}MB). Maximum size is 5MB.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    ext = file_obj.name.rsplit('.', 1)[-1].lower() if '.' in file_obj.name else ''
+    if ext not in ALLOWED_PROFILE_PICTURE_EXTENSIONS:
+        return Response(
+            {'error': f"Unsupported file type '.{ext}'. Allowed types: {', '.join(sorted(ALLOWED_PROFILE_PICTURE_EXTENSIONS))}."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Delete the old file first so a user who re-uploads repeatedly doesn't
+    # silently accumulate orphaned images in media storage.
+    if profile.profile_picture and profile.profile_picture.name != 'users/default-profile.png':
+        profile.profile_picture.delete(save=False)
+
+    profile.profile_picture = file_obj
+    profile.save()
+    return Response(ProfileSerializer(profile).data, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

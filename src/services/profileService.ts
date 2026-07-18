@@ -21,6 +21,22 @@ export const getPublicPortfolio = async (slug: string): Promise<PublicPortfolio>
   return response.data;
 };
 
+/** Uploads a new profile picture. Returns the updated profile (with the new picture URL). */
+export const uploadProfilePicture = async (file: File): Promise<{ profile_picture: string }> => {
+  const formData = new FormData();
+  formData.append('profile_picture', file);
+  const response = await axios.post(`${API_BASE_URL}/users/api/profile/picture/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+/** Resets the profile picture back to the default avatar. */
+export const removeProfilePicture = async (): Promise<{ profile_picture: string }> => {
+  const response = await axios.delete(`${API_BASE_URL}/users/api/profile/picture/`);
+  return response.data;
+};
+
 /** Triggers a browser download of the full GDPR-style JSON data export. */
 export const exportUserData = async (): Promise<void> => {
   const response = await axios.get(`${API_BASE_URL}/users/api/export-data/`, {
