@@ -233,11 +233,14 @@ const InterviewChatbot: React.FC = () => {
         `Chatbot: Asked about "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`
       );
 
-      // Send to backend and get response
+      // Send to backend and get response. Follow-up suggestions only make
+      // sense in advice mode — in reverse mode the bot just asked *you* a
+      // question, so the next thing you do is answer it, not pick a
+      // suggested question to ask back.
       const response = await sendChatMessage(text, sessionId, {
         mode: chatMode,
         jobPosting: showJobPosting ? jobPosting : undefined,
-        wantFollowUps: true,
+        wantFollowUps: chatMode === 'advice',
       });
 
       // Update session ID if returned from backend

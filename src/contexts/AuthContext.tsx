@@ -97,8 +97,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           originalRequest.headers['Authorization'] = `Bearer ${data.access}`;
 
           return axios(originalRequest);
-        } catch (refreshError) {
-          logoutRef.current();
+        } catch (refreshError: any) {
+          // Only treat this as "your session is actually invalid" (and log
+          // out) when the server responded and said so. A network error or
+          // timeout on the refresh call itself (e.g. a cold-starting free-tier
+          // backend) is not proof the refresh token is bad — logging the user
+          // out in that case silently wipes a perfectly valid session and
+          // leaves stale protected-page content on screen with no explanation.
+          if (refreshError.response) {
+            logoutRef.current();
+          }
           return Promise.reject(refreshError);
         }
       }

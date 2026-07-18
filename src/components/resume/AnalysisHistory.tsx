@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Paper, Typography, Box, Chip, List, ListItem, ListItemText } from '@mui/material';
+import { Paper, Typography, Box, Chip, List, ListItem, ListItemText, IconButton, Tooltip } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
-import { getUserAnalyses } from '../../services/resumeService';
+import DownloadIcon from '@mui/icons-material/Download';
+import { getUserAnalyses, downloadTailoredResume } from '../../services/resumeService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotification } from '../../contexts/NotificationContext';
 
 interface AnalysisHistoryItem {
   id: number;
@@ -14,8 +16,23 @@ interface AnalysisHistoryItem {
 
 const AnalysisHistory: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const { notify } = useNotification();
   const [analyses, setAnalyses] = useState<AnalysisHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const handleDownload = async (id: number) => {
+    setDownloadingId(id);
+    try {
+      await downloadTailoredResume(id);
+      notify('Tailored resume downloaded', 'success');
+    } catch (err) {
+      console.error('Error downloading tailored resume:', err);
+      notify('Failed to download tailored resume. Please try again.', 'error');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -42,11 +59,24 @@ const AnalysisHistory: React.FC = () => {
           <ListItem
             key={analysis.id}
             secondaryAction={
-              <Chip
-                label={`${analysis.match_score}%`}
-                color={analysis.match_score > 70 ? 'success' : 'warning'}
-                size="small"
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  label={`${analysis.match_score}%`}
+                  color={analysis.match_score > 70 ? 'success' : 'warning'}
+                  size="small"
+                />
+                <Tooltip title="Download tailored resume (.docx)">
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDownload(analysis.id)}
+                      disabled={downloadingId === analysis.id}
+                    >
+                      <DownloadIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Box>
             }
           >
             <ListItemText
