@@ -5,6 +5,7 @@ import axios from 'axios';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Logo from '../components/common/Logo';
+import { extractApiErrorMessage } from '../utils/apiError';
 
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
 
@@ -22,7 +23,7 @@ const VerifyEmail: React.FC = () => {
       })
       .catch((err) => {
         setStatus('error');
-        setMessage(err.response?.data?.error || 'This verification link is invalid or has expired.');
+        setMessage(extractApiErrorMessage(err, 'This verification link is invalid or has expired.'));
       });
   }, [uid, token]);
 

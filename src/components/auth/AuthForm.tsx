@@ -20,6 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import Logo from '../common/Logo';
 import PasswordStrengthMeter from '../common/PasswordStrengthMeter';
+import { extractApiErrorMessage } from '../../utils/apiError';
 
 // Define API base URL
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
@@ -159,10 +160,7 @@ const AuthForm: React.FC = () => {
     } catch (err: any) {
       console.error('Authentication error:', err);
       if (err.response && err.response.data) {
-        // Format error message
-        const errorMessage = Object.entries(err.response.data)
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(', ');
+        const errorMessage = extractApiErrorMessage(err, 'Authentication failed. Please try again.');
         setError(errorMessage);
         notify(errorMessage, 'error');
       } else {

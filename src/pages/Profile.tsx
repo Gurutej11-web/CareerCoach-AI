@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { exportUserData } from '../services/profileService';
 import { useNotification } from '../contexts/NotificationContext';
+import { extractApiErrorMessage } from '../utils/apiError';
 
 // API base URL
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
@@ -298,7 +299,7 @@ const Profile: React.FC = () => {
       logout();
       navigate('/');
     } catch (err: any) {
-      notify(err.response?.data?.error || 'Failed to delete account. Please check your password and try again.', 'error');
+      notify(extractApiErrorMessage(err, 'Failed to delete account. Please check your password and try again.'), 'error');
     } finally {
       setDeleting(false);
     }

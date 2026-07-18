@@ -20,6 +20,7 @@ import PageHeader from '../components/common/PageHeader';
 import { generateWithAITool, AIToolId } from '../services/aiToolsService';
 import { useRecentActivity } from '../contexts/RecentActivityContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { extractApiErrorMessage } from '../utils/apiError';
 
 interface ToolConfig {
   id: AIToolId;
@@ -142,7 +143,7 @@ const AITools: React.FC = () => {
       setResult(response.result);
       addActivity('chatbot', `Used AI Tool: ${selected.title}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Something went wrong generating this. Please try again.');
+      setError(extractApiErrorMessage(err, 'Something went wrong generating this. Please try again.'));
     } finally {
       setLoading(false);
     }

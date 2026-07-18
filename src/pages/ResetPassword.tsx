@@ -7,6 +7,7 @@ import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import Logo from '../components/common/Logo';
 import PasswordStrengthMeter from '../components/common/PasswordStrengthMeter';
+import { extractApiErrorMessage } from '../utils/apiError';
 
 const API_BASE_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/users/api`;
 
@@ -37,7 +38,7 @@ const ResetPassword: React.FC = () => {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'This reset link is invalid or has expired.');
+      setError(extractApiErrorMessage(err, 'This reset link is invalid or has expired.'));
     } finally {
       setLoading(false);
     }
