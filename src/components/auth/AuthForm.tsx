@@ -43,6 +43,7 @@ const AuthForm: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryStatus, setRetryStatus] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -114,9 +115,36 @@ const AuthForm: React.FC = () => {
     setShowConfirmPassword(!showConfirmPassword);
   };
 
+  const attemptAuthRequest = async () => {
+    if (isLogin) {
+      const response = await api.post('/login/', {
+        username: formData.username,
+        password: formData.password,
+      });
+      login(response.data.access, response.data.refresh, { username: formData.username });
+      notify(`Welcome back, ${formData.username}!`, 'success');
+      navigate('/dashboard');
+    } else {
+      const response = await api.post('/register/', formData);
+      login(response.data.access, response.data.refresh, response.data.user);
+      notify('Account created successfully!', 'success');
+      navigate('/dashboard');
+    }
+  };
+
+  // No `err.response` means the request never got a reply at all — most
+  // often the backend is a cold-starting free-tier instance (can take
+  // 30-60s to wake up), not an actual auth rejection. Retry with a couple
+  // of staged waits instead of immediately showing an unhelpful "try again"
+  // the user has no way to act on. Waits are deliberately uneven (8s, 20s)
+  // so most cold starts are caught by the second attempt without making
+  // someone with a real network problem sit through a full minute silently.
+  const RETRY_DELAYS_MS = [8000, 20000];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setRetryStatus(null);
 
     if (!validate()) {
       return;
@@ -124,52 +152,32 @@ const AuthForm: React.FC = () => {
 
     setLoading(true);
 
-    try {
-      if (isLogin) {
-        // Login
-        const response = await api.post('/login/', {
-          username: formData.username,
-          password: formData.password,
-        });
-
-        // Store user data in auth context
-        login(
-          response.data.access,
-          response.data.refresh,
-          { username: formData.username }
-        );
-
-        notify(`Welcome back, ${formData.username}!`, 'success');
-        // Navigate to dashboard
-        navigate('/dashboard');
-      } else {
-        // Register
-        const response = await api.post('/register/', formData);
-        
-        // Store user data in auth context
-        login(
-          response.data.access,
-          response.data.refresh,
-          response.data.user
-        );
-
-        notify('Account created successfully!', 'success');
-        // Navigate to dashboard
-        navigate('/dashboard');
+    let lastErr: any;
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        await attemptAuthRequest();
+        setRetryStatus(null);
+        setLoading(false);
+        return;
+      } catch (err: any) {
+        lastErr = err;
+        if (err.response) break; // a real response means retrying won't help
+        if (attempt < RETRY_DELAYS_MS.length) {
+          console.warn(`Auth request got no response (attempt ${attempt + 1}), retrying — likely a cold-starting backend:`, err);
+          setRetryStatus(`The server is waking up — retrying in ${RETRY_DELAYS_MS[attempt] / 1000}s…`);
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+        }
       }
-    } catch (err: any) {
-      console.error('Authentication error:', err);
-      if (err.response && err.response.data) {
-        const errorMessage = extractApiErrorMessage(err, 'Authentication failed. Please try again.');
-        setError(errorMessage);
-        notify(errorMessage, 'error');
-      } else {
-        setError('Authentication failed. Please try again.');
-        notify('Authentication failed. Please try again.', 'error');
-      }
-    } finally {
-      setLoading(false);
     }
+
+    setRetryStatus(null);
+    console.error('Authentication error:', lastErr);
+    const errorMessage = lastErr.response
+      ? extractApiErrorMessage(lastErr, 'Authentication failed. Please try again.')
+      : "Couldn't reach the server after a few tries. It may still be starting up — please try again in a moment.";
+    setError(errorMessage);
+    notify(errorMessage, 'error');
+    setLoading(false);
   };
 
   return (
@@ -249,6 +257,11 @@ const AuthForm: React.FC = () => {
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
+            </Alert>
+          )}
+          {retryStatus && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              {retryStatus}
             </Alert>
           )}
 
