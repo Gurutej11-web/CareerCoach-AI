@@ -64,6 +64,7 @@ yarn-error.log*
 
 # Claude Code local-only settings (per-machine permission approvals)
 .claude/settings.local.json
+.claude/*.lock
 
 # ─── OS ─────────────────────────────────────────────────────
 .DS_Store
@@ -78,3 +79,6 @@ logs/
 *.bak
 *.tmp
 *.orig
+
+# Devpost submission assets (screenshots, demo-account scripts) — not project code
+/project-media/

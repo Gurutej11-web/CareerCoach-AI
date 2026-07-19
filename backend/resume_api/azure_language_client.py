@@ -13,28 +13,17 @@ load_dotenv()
 key = os.getenv("AZURE_LANGUAGE_KEY")
 endpoint = os.getenv("AZURE_LANGUAGE_ENDPOINT")
 
-# BERT is loaded lazily (see _get_bert below) so Django doesn't pay the
-# import/weight-loading cost — and risk OOM on memory-constrained hosts —
-# at process startup, before any request has actually asked for it.
-_bert_tokenizer = None
-_bert_model = None
-_bert_load_attempted = False
-
-
-def _get_bert():
-    """Load the BERT tokenizer/model on first use, then cache them."""
-    global _bert_tokenizer, _bert_model, _bert_load_attempted
-    if not _bert_load_attempted:
-        _bert_load_attempted = True
-        try:
-            from transformers import AutoTokenizer, AutoModel
-            _bert_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-            _bert_model = AutoModel.from_pretrained("bert-base-uncased")
-        except Exception as e:
-            print(f"Error loading BERT model: {str(e)}")
-            _bert_tokenizer = None
-            _bert_model = None
-    return _bert_tokenizer, _bert_model
+# BERT is intentionally never loaded (see get_bert_embedding below).
+# `bert-base-uncased` pulls ~440MB of model weights into memory, which
+# reliably OOM-kills the worker on a 512MB free-tier host (Render, etc.) —
+# and because that's a SIGKILL from the OS, not a Python exception, no
+# try/except around from_pretrained() can catch it or fall back gracefully;
+# the request just dies as a 500/502 with no useful log line. This is the
+# same class of crash that was already found and fixed in
+# interviews/bert_analyzer.py (see that file's docstring) — this was a
+# second, previously-unfixed instance of it. If real BERT embeddings are
+# wanted again, they need to run in a separate worker/service sized for it,
+# not inline in the request/response cycle of a free-tier host.
 
 # Initialize Azure Language Text Analytics client
 def get_text_analytics_client():
@@ -143,36 +132,20 @@ def detect_language(text):
 # Get BERT embeddings for text
 def get_bert_embedding(text):
     """
-    Get BERT embeddings for a text string using the pre-trained BERT model.
-    
+    Get an embedding vector for a text string. Real BERT is never loaded
+    (see _get_bert above), so this always takes the lightweight fallback: a
+    fixed-length vector of the first 20 characters' ordinals. It's a weak
+    similarity signal on its own, which is why calculate_text_similarity()
+    below only leans on it for the cases its exact/acronym/variant/partial-
+    match heuristics don't already resolve.
+
     Args:
         text (str): Text to embed
-        
+
     Returns:
-        numpy.ndarray: BERT embedding vector
+        numpy.ndarray: embedding vector
     """
-    tokenizer, model = _get_bert()
-    if tokenizer is None or model is None:
-        # Fallback to simple character-based embedding if BERT is not available
-        return np.array([ord(c) for c in text[:20].ljust(20)])
-
-    try:
-        import torch
-
-        # Tokenize and prepare for BERT
-        inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=128)
-
-        # Get BERT embeddings
-        with torch.no_grad():
-            outputs = model(**inputs)
-
-        # Use the [CLS] token embedding as the sentence embedding
-        embeddings = outputs.last_hidden_state[:, 0, :].numpy()
-        return embeddings[0]  # Return the first (and only) embedding
-    except Exception as e:
-        print(f"Error getting BERT embedding: {str(e)}")
-        # Fallback to simple character-based embedding
-        return np.array([ord(c) for c in text[:20].ljust(20)])
+    return np.array([ord(c) for c in text[:20].ljust(20)])
 
 # Calculate contextual semantic similarity between texts using BERT
 def calculate_text_similarity(text1, text2, is_tech_skill=False):
